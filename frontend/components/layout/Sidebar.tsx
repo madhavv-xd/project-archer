@@ -7,6 +7,7 @@ import { KeyRound, LayoutDashboard, LogOut, ScrollText, Boxes } from "lucide-rea
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Brandmark } from "@/components/layout/Brandmark";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -20,9 +21,11 @@ export function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
-      <div className="px-5 py-4 text-lg font-bold tracking-tight">Archer</div>
-      <nav className="flex flex-1 flex-col gap-1 px-3">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <Link href="/" className="flex h-16 items-center px-5">
+        <Brandmark iconSize={20} className="text-lg" />
+      </Link>
+      <nav className="flex flex-1 flex-col gap-1 px-3 pt-2">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -30,9 +33,9 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 text-primary before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

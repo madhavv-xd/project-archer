@@ -20,7 +20,7 @@ export default function ModelsPage() {
 
   return (
     <>
-      <Header title="Models" />
+      <Header title="Models" subtitle="The pool Archer draws from for every request." />
       <main className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {models.map((model) => (

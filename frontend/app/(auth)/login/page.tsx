@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Brandmark } from "@/components/layout/Brandmark";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,15 +37,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(55% 45% at 50% 0%, rgba(233,185,73,0.10), transparent 70%)",
+        }}
+      />
+      <Link href="/" className="relative">
+        <Brandmark iconSize={22} className="text-2xl" />
+      </Link>
+      <Card className="relative w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-1 text-xl font-bold tracking-tight">
-            Archer
-          </div>
-          <CardTitle className="text-base font-medium text-muted-foreground">
-            Sign in to your account
+          <CardTitle className="font-display text-lg font-bold">
+            Welcome back
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sign in to aim your requests.
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">

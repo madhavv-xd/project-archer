@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { Activity, CalendarClock, Coins, Target } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { DashboardStats, RequestLog } from "@/types";
@@ -23,18 +24,28 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard" />
+      <Header title="Dashboard" subtitle="Every shot you've taken, at a glance." />
       <main className="flex-1 overflow-y-auto p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatsCard label="Total Requests" value={stats?.total_requests ?? "—"} />
-          <StatsCard label="Requests Today" value={stats?.requests_today ?? "—"} />
+          <StatsCard
+            label="Total Requests"
+            value={stats?.total_requests ?? "—"}
+            icon={Activity}
+          />
+          <StatsCard
+            label="Requests Today"
+            value={stats?.requests_today ?? "—"}
+            icon={CalendarClock}
+          />
           <StatsCard
             label="Total Tokens"
             value={stats ? stats.total_tokens.toLocaleString() : "—"}
+            icon={Coins}
           />
           <StatsCard
             label="Success Rate"
             value={stats ? `${stats.success_rate}%` : "—"}
+            icon={Target}
           />
         </div>
         <div className="mt-6">

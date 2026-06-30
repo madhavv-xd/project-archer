@@ -25,7 +25,7 @@ export default function LogsPage() {
 
   return (
     <>
-      <Header title="Logs" />
+      <Header title="Logs" subtitle="Every request, and the model that answered it." />
       <main className="flex-1 overflow-y-auto p-6">
         <Card>
           <CardContent className="px-0">
