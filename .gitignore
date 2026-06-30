@@ -1,0 +1,43 @@
+# ---------- Python / backend ----------
+.venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---------- Environment files (keep the *.example templates) ----------
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env.local
+
+# ---------- Node / frontend ----------
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+*.tsbuildinfo
+
+# ---------- Editors / IDEs ----------
+.vscode/
+.idea/
+*.swp
+*~
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+
+# ---------- Logs ----------
+*.log
+
+CLAUDE.md
+context.md
