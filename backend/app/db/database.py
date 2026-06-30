@@ -14,6 +14,7 @@ engine = create_async_engine(
     settings.async_database_url,
     echo=settings.APP_ENV == "development",
     pool_pre_ping=True,
+    pool_recycle=300,  # Neon drops idle connections; recycle before it does.
 )
 
 AsyncSessionLocal = async_sessionmaker(

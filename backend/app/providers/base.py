@@ -11,6 +11,28 @@ from app.schemas.chat import ChatMessage
 # Error categories that the proxy treats as "try the next model in the chain".
 RETRYABLE = {"rate_limit", "server_error", "timeout"}
 
+# One shared client for the whole process so connections (and TLS handshakes)
+# are pooled and reused across requests instead of rebuilt every call.
+# Created lazily; closed on app shutdown (see app.main lifespan).
+_client: httpx.AsyncClient | None = None
+
+
+def _get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None:
+        _client = httpx.AsyncClient(
+            timeout=settings.PROVIDER_TIMEOUT_SECONDS,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+        )
+    return _client
+
+
+async def close_client() -> None:
+    global _client
+    if _client is not None:
+        await _client.aclose()
+        _client = None
+
 
 class ProviderError(Exception):
     def __init__(self, category: str, message: str, status: int | None = None):
@@ -47,12 +69,11 @@ class BaseProvider(ABC):
             "max_tokens": max_tokens,
         }
         try:
-            async with httpx.AsyncClient(timeout=settings.PROVIDER_TIMEOUT_SECONDS) as client:
-                resp = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    json=payload,
-                    headers=self.headers(),
-                )
+            resp = await _get_client().post(
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=self.headers(),
+            )
         except httpx.TimeoutException as exc:
             raise ProviderError("timeout", f"{self.name} timed out") from exc
         except httpx.HTTPError as exc:

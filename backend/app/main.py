@@ -19,6 +19,7 @@ from app.config import settings
 from app.core.proxy import model_cache
 from app.db.database import AsyncSessionLocal
 from app.db.repositories import models as models_repo
+from app.providers.base import close_client
 
 logging.basicConfig(level=settings.LOG_LEVEL)
 logger = logging.getLogger("archer")
@@ -32,6 +33,8 @@ async def lifespan(app: FastAPI):
     model_cache.load(models_list)
     logger.info("Loaded %d models into cache", len(model_cache))
     yield
+    # Shutdown: close the shared provider HTTP client.
+    await close_client()
 
 
 app = FastAPI(title="Archer", version=health.VERSION, lifespan=lifespan)

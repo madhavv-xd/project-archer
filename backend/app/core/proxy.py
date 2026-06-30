@@ -87,9 +87,11 @@ async def call_with_fallback(
         except ProviderError as exc:
             last_error = exc
             logger.warning("provider %s failed (%s): %s", attempt_name, exc.category, exc)
-            if exc.category in RETRYABLE or exc.category == "client_error":
+            if exc.category in RETRYABLE:
                 continue
-            continue
+            # Non-retryable (e.g. client_error): another model won't fix a bad
+            # request, so stop walking the chain instead of fanning out N calls.
+            break
 
         is_fallback = model.name != selected_name and selected is not None
         return ProxyResult(

@@ -14,9 +14,10 @@ MATH_KEYWORDS = {
 
 ANALYSIS_KEYWORDS = {
     "analyze", "compare", "evaluate", "research", "detailed", "comprehensive",
-    "tradeoffs", "in depth", "explain thoroughly",
+    "tradeoffs",
 }
-# Multi-word analysis phrases checked as substrings.
+# Multi-word analysis phrases checked as substrings (single-word matches above
+# go through the tokenizer; these can't, so they live here).
 ANALYSIS_PHRASES = ["pros and cons", "in depth", "explain thoroughly"]
 
 SIMPLE_PREFIXES = (

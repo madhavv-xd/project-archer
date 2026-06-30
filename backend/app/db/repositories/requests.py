@@ -52,26 +52,24 @@ async def recent_for_user(
 async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
     base = _user_logs_query(user_id).subquery()
 
-    total_requests = int(await db.scalar(select(func.count()).select_from(base)) or 0)
-
     start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    requests_today = int(
-        await db.scalar(
-            select(func.count()).select_from(base).where(base.c.created_at >= start_of_day)
-        )
-        or 0
-    )
 
-    total_tokens = int(
-        await db.scalar(select(func.coalesce(func.sum(base.c.total_tokens), 0))) or 0
-    )
-
-    successes = int(
-        await db.scalar(
-            select(func.count()).select_from(base).where(base.c.status == "success")
+    # One pass over the logs for all four scalar aggregates (FILTER avoids
+    # separate round-trips for the conditional counts).
+    agg = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(base.c.created_at >= start_of_day),
+                func.coalesce(func.sum(base.c.total_tokens), 0),
+                func.count().filter(base.c.status == "success"),
+            ).select_from(base)
         )
-        or 0
-    )
+    ).one()
+    total_requests = int(agg[0] or 0)
+    requests_today = int(agg[1] or 0)
+    total_tokens = int(agg[2] or 0)
+    successes = int(agg[3] or 0)
     success_rate = round((successes / total_requests) * 100, 2) if total_requests else 0.0
 
     # Most-used model (by name)
