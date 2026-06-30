@@ -6,23 +6,35 @@
 
 ---
 
+## Deployed Instance
+
+| Component | URL |
+|---|---|
+| **Frontend (Dashboard)** | [https://project-archer.vercel.app](https://project-archer.vercel.app) |
+| **Backend (API)** | [https://project-archer.onrender.com](https://project-archer.onrender.com) |
+| **Interactive API Docs (Swagger)** | [https://project-archer.onrender.com/docs](https://project-archer.onrender.com/docs) |
+
+No local setup required — register at the dashboard above, create an API key, and start sending requests immediately.
+
+---
+
 ## What it does (Phase 1)
 
 ```
                          ┌──────────────────────────────────────────────┐
-   Your app              │                  Archer                       │
-   (OpenAI SDK,          │                                               │
-    curl, Postman)       │   POST /v1/chat/completions                   │
-        │                │        │                                      │
-        │  arch_sk_ key  │        ▼                                      │
-        └───────────────▶│   keyword router ──▶ picks best model         │
-                         │        │                                      │
-                         │        ▼                                      │
-                         │   provider call (Groq / OpenRouter)           │──▶ free cloud LLMs
-                         │        │   └─ fallback chain on error          │
-                         │        ▼                                      │
-                         │   normalize → "archer-auto" → log to Postgres  │──▶ Neon
-                         └──────────────────────────────────────────────┘
+   Your app               │                  Archer                       │
+   (OpenAI SDK,           │                                               │
+    curl, Postman)        │   POST /v1/chat/completions                   │
+        │                 │        │                                      │
+        │  arch_sk_ key   │        ▼                                      │
+        └────────────────▶│   keyword router ──▶ picks best model         │
+                          │        │                                      │
+                          │        ▼                                      │
+                          │   provider call (Groq / OpenRouter)           │──▶ free cloud LLMs
+                          │        │   └─ fallback chain on error         │
+                          │        ▼                                      │
+                          │   normalize → "archer-auto" → log to Postgres  │──▶ Neon
+                          └──────────────────────────────────────────────┘
 ```
 
 - **One OpenAI-compatible API.** Point any OpenAI client at Archer; the `model` field you send is **ignored** — Archer always chooses.
@@ -110,6 +122,71 @@ components/            layout, dashboard, api-keys, models, logs, ui
 
 ---
 
+## Quick Start — Use the Deployed Instance
+
+Skip local setup entirely and go straight to sending requests:
+
+### 1. Register & get an API key
+
+1. Open [https://project-archer.vercel.app](https://project-archer.vercel.app)
+2. Click **Register**, create an account, then log in
+3. Navigate to **API Keys** → **Create New Key**
+4. **Copy the key immediately** — it is shown only once (format: `arch_sk_` + 48 chars)
+
+### 2. Send a request
+
+Pick your language below, replace `YOUR_KEY`, and run:
+
+#### Node.js (OpenAI SDK)
+```javascript
+// npm install openai
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: "arch_sk_YOUR_KEY",
+  baseURL: "https://project-archer.onrender.com/v1",
+});
+
+const resp = await client.chat.completions.create({
+  model: "archer-auto",
+  messages: [{ role: "user", content: "compare REST and GraphQL" }],
+});
+console.log(resp.choices[0].message.content);
+```
+
+#### Python (OpenAI SDK)
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://project-archer.onrender.com/v1",
+    api_key="arch_sk_...",
+)
+resp = client.chat.completions.create(
+    model="anything",  # ignored — Archer decides
+    messages=[{"role": "user", "content": "Write a Python function to reverse a string"}],
+)
+print(resp.choices[0].message.content)
+# response says model="archer-auto"
+```
+
+#### cURL
+```bash
+curl https://project-archer.onrender.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer arch_sk_YOUR_KEY" \
+  -d '{
+    "model": "anything",
+    "messages": [{"role": "user", "content": "compare REST and GraphQL"}]
+  }'
+```
+
+### 3. View logs
+
+Go to the **Logs** page on the dashboard to see every request — the real model used, routing reason, token count, and latency.
+
+---
+
 ## Getting started (local)
 
 ### Prerequisites
@@ -155,7 +232,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ---
 
-## Trying it out
+## Trying it out (local)
 
 ### Easiest: the dashboard
 Open http://localhost:3000 → **Register** → go to **API Keys** → **Create New Key** and copy the `arch_sk_…` key (shown once). Browse **Models**, and after you send a request (below) watch it appear under **Logs**.
@@ -205,6 +282,27 @@ Try a math prompt (`"Calculate the derivative of x^2"`) or a short one (`"hello"
 
 ---
 
+## How routing works
+
+Archer inspects the last user message in each request and runs keyword rules in priority order:
+
+1. **coding** → if message contains code-related keywords (`python`, `javascript`, `function`, `debug`, `refactor`, `api`, etc.) → Llama 3.3 70B
+2. **math** → if message contains math keywords (`calculate`, `derivative`, `integral`, `equation`, `solve`, `theorem`, etc.) → GPT-OSS 120B
+3. **analysis** → if message contains analysis keywords (`analyze`, `compare`, `explain`, `why`, `how`, `evaluate`, etc.) → Qwen 2.5 72B
+4. **writing / chat** → if message contains writing keywords (`write`, `essay`, `poem`, `story`, `draft`, `edit`, etc.) → GPT-OSS 20B
+5. **simple / short** → if message is under 100 characters → Llama 3.1 8B
+6. **default** → everything else → Llama 3.3 70B
+
+If the selected model fails with a retryable error (rate limit, server error, timeout), Archer walks the fallback chain until one succeeds. If all 5 fail, a `503 Service Unavailable` is returned.
+
+---
+
+## Repository docs
+- [`context.md`](./context.md) — the complete product spec and roadmap (source of truth).
+- [`CLAUDE.md`](./CLAUDE.md) — orientation for AI coding agents, including where the implementation deliberately diverges from the spec.
+
+---
+
 ## Roadmap (beyond Phase 1)
 
 Each phase fixes the previous one's biggest limitation (full detail in `context.md`):
@@ -216,9 +314,3 @@ Each phase fixes the previous one's biggest limitation (full detail in `context.
 
 ### Phase 1 is intentionally limited
 No billing, no rate limiting beyond what providers enforce, no streaming, no ML routing, single server. Don't add those here — see the not-in-scope list in `context.md` §5.1.
-
----
-
-## Repository docs
-- [`context.md`](./context.md) — the complete product spec and roadmap (source of truth).
-- [`CLAUDE.md`](./CLAUDE.md) — orientation for AI coding agents, including where the implementation deliberately diverges from the spec.
