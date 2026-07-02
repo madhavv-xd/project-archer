@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Brandmark } from "@/components/layout/Brandmark";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -116,6 +117,9 @@ export default function RegisterPage() {
               {loading ? "Creating…" : "Register"}
             </Button>
           </form>
+          <div className="mt-4">
+            <OAuthButtons />
+          </div>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/login" className="text-primary hover:underline">

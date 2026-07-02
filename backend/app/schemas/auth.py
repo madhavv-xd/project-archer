@@ -17,6 +17,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class OAuthUpsertRequest(BaseModel):
+    provider: str = Field(..., pattern="^(google|github)$")
+    provider_account_id: str = Field(..., min_length=1)
+    email: EmailStr
+    name: str | None = None
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

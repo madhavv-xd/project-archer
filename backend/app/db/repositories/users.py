@@ -17,7 +17,9 @@ async def get_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
     return await db.get(User, user_id)
 
 
-async def create(db: AsyncSession, *, email: str, password_hash: str, name: str | None) -> User:
+async def create(
+    db: AsyncSession, *, email: str, password_hash: str | None = None, name: str | None = None
+) -> User:
     user = User(email=email, password_hash=password_hash, name=name)
     db.add(user)
     await db.commit()

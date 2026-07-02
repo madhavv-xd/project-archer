@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_EXPIRE_MINUTES: int = 10080  # 7 days
 
+    # OAuth — shared secret guarding the server-to-server /auth/oauth endpoint
+    # (set identically here and in the frontend env). See design.md.
+    OAUTH_INTERNAL_SECRET: str = ""
+
     # Frontend / CORS
     FRONTEND_URL: str = "http://localhost:3000"
 
