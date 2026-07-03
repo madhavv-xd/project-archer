@@ -1,0 +1,32 @@
+# Production stack — runs on the EC2 box. Pulls the backend image from ECR.
+# Variable substitution (${ECR_REGISTRY}, ${IMAGE_TAG}) is read from ~/archer/.env.
+# Bring up with:  docker compose -f docker-compose.prod.yml up -d
+
+services:
+  backend:
+    image: ${ECR_REGISTRY}/archer-backend:${IMAGE_TAG:-latest}
+    env_file: .env
+    restart: unless-stopped
+    # Bound to loopback only: reachable by nginx (same Docker network) and by the
+    # in-box deploy smoke test, never from the public internet.
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot
+    depends_on:
+      - backend
