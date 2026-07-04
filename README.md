@@ -10,7 +10,7 @@ Inspired by Sakana AI's Fugu Technical Report.
 
 | Component | URL |
 |---|---|
-| **Frontend (Dashboard)** | https://project-archer.vercel.app |
+| **Frontend (Dashboard)** | https://project-archer.online |
 | **Backend (API)** | https://api.project-archer.online |
 | **Swagger docs** | https://api.project-archer.online/docs |
 
