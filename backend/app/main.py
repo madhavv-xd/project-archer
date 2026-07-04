@@ -54,3 +54,5 @@ app.include_router(models.router)
 app.include_router(logs.router)
 app.include_router(dashboard.router)
 app.include_router(chat.router)
+
+#for running -> uv run uvicorn app.main:app --reload --port 8000
