@@ -6,7 +6,7 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.middleware.auth import get_api_key
+from app.api.middleware.auth import enforce_limits
 from app.core.proxy import AllModelsUnavailable, call_with_fallback, model_cache
 from app.core.router import keyword_route
 from app.db.database import AsyncSessionLocal
@@ -36,7 +36,7 @@ async def _log(**fields) -> None:
 
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
-    body: ChatCompletionRequest, api_key: ApiKey = Depends(get_api_key)
+    body: ChatCompletionRequest, api_key: ApiKey = Depends(enforce_limits)
 ) -> ChatCompletionResponse:
     if body.stream:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Streaming is not supported in Phase 1")
@@ -87,7 +87,7 @@ async def chat_completions(
 
 
 @router.get("/models")
-async def list_models(_api_key: ApiKey = Depends(get_api_key)) -> dict:
+async def list_models(_api_key: ApiKey = Depends(enforce_limits)) -> dict:
     # Archer presents a single virtual model; the real pool is never exposed.
     return {
         "object": "list",

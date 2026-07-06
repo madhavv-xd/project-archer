@@ -42,6 +42,22 @@ class Settings(BaseSettings):
     # Providers
     PROVIDER_TIMEOUT_SECONDS: int = 30
 
+    # Rate limiting / quotas (Phase 2A). Unset REDIS_URL = limiting disabled
+    # entirely (Phase 1 behavior).
+    REDIS_URL: str = ""
+    RATE_LIMIT_RPM: int = 30
+    MONTHLY_QUOTA_REQUESTS: int = 10000
+
+    @property
+    def plan_limits(self) -> dict[str, dict[str, int]]:
+        """Per-plan limits, resolved from env overrides. Single 'free' plan in 2A."""
+        return {
+            "free": {
+                "rpm": self.RATE_LIMIT_RPM,
+                "monthly_requests": self.MONTHLY_QUOTA_REQUESTS,
+            }
+        }
+
     @property
     def async_database_url(self) -> str:
         """Normalize a Neon/libpq connection string to the asyncpg driver.

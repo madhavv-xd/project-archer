@@ -2,16 +2,19 @@
 
 - get_current_user: validates a dashboard JWT (Authorization: Bearer <jwt>).
 - get_api_key: validates an Archer API key (Authorization: Bearer arch_sk_...).
-Both reject inactive users/keys. These are intentionally separate systems.
+- enforce_limits: get_api_key + Redis rate limit/quota checks (use on /v1/*).
+Both auth schemes reject inactive users/keys and are intentionally separate systems.
 """
 
 import asyncio
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.core.rate_limit import RateLimitExceeded, check_monthly_quota, check_rate_limit
 from app.core.security import decode_access_token, hash_api_key
 from app.db.database import AsyncSessionLocal, get_db
 from app.db.models import ApiKey, User
@@ -74,4 +77,54 @@ async def get_api_key(
 
     # Fire-and-forget last_used_at update — never blocks the request.
     asyncio.create_task(_touch_last_used(api_key.id))
+    return api_key
+
+
+async def enforce_limits(
+    request: Request,
+    response: Response,
+    api_key: ApiKey = Depends(get_api_key),
+) -> ApiKey:
+    """Rate-limit + quota gate for /v1/* — a drop-in replacement for get_api_key.
+
+    No Redis client (REDIS_URL unset) = Phase 1 behavior: no checks, no headers.
+    Header values are stashed on request.state for routes that return a Response
+    directly (the streaming path), and set on the injected Response for the
+    normal JSON path.
+    """
+    redis = getattr(request.app.state, "redis", None)
+    if redis is None:
+        return api_key
+
+    limits = settings.plan_limits.get(api_key.user.plan) or settings.plan_limits["free"]
+
+    rl = await check_rate_limit(redis, api_key.id, limits["rpm"])
+    headers = {
+        "X-RateLimit-Limit-Requests": str(rl.limit),
+        "X-RateLimit-Remaining-Requests": str(rl.remaining),
+        "X-RateLimit-Reset-Requests": str(rl.reset_seconds),
+    }
+    request.state.rate_limit_headers = headers
+    response.headers.update(headers)
+
+    if not rl.allowed:
+        raise RateLimitExceeded(
+            code="rate_limit_exceeded",
+            message=(
+                f"Rate limit of {rl.limit} requests per minute exceeded. "
+                f"Try again in {rl.reset_seconds} seconds."
+            ),
+            retry_after=rl.reset_seconds,
+            headers=headers,
+        )
+
+    # Checked second so requests rejected by the RPM limit don't consume quota.
+    quota = await check_monthly_quota(redis, api_key.user_id, limits["monthly_requests"])
+    if not quota.allowed:
+        raise RateLimitExceeded(
+            code="monthly_quota_exceeded",
+            message=f"Monthly quota of {quota.limit} requests exceeded.",
+            retry_after=quota.reset_seconds,
+            headers=headers,
+        )
     return api_key
