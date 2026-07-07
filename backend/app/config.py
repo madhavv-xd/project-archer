@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Provider API keys
     GROQ_API_KEY: str = ""
     OPENROUTER_API_KEY: str = ""
+    OLLAMA_API_KEY: str = ""
 
     # App
     APP_ENV: str = "development"

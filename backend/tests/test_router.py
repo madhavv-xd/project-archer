@@ -30,12 +30,12 @@ def test_simple_prefix_overrides_length():
     assert reason == "simple_query"
 
 
-def test_analysis_keyword_routes_to_qwen():
+def test_analysis_keyword_routes_to_nemotron():
     model, reason = keyword_route(
         "please compare these two different business strategies and give me a thorough "
         "breakdown of each option for my quarterly report"
     )
-    assert model == "qwen-2.5-72b-or"
+    assert model == "nemotron-3-super-ollama"
     assert reason == "analysis_keywords"
 
 
@@ -44,7 +44,7 @@ def test_analysis_phrase_substring_matches():
         "walk me through these marketing plans in depth so the whole team understands every "
         "tradeoff before the launch next week"
     )
-    assert model == "qwen-2.5-72b-or"
+    assert model == "nemotron-3-super-ollama"
     assert reason == "analysis_keywords"
 
 

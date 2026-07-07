@@ -1,5 +1,6 @@
 """Normalize any provider's raw response into the standard Archer/OpenAI shape."""
 
+import json
 import time
 import uuid
 
@@ -38,3 +39,29 @@ def normalize_response(raw: dict) -> ChatCompletionResponse:
             total_tokens=usage.get("total_tokens", 0) or 0,
         ),
     )
+
+
+def normalize_chunk(raw_line: str, archer_id: str) -> str | None:
+    """Re-stamp one streamed SSE line into the archer-auto shape.
+
+    Returns a serialized ``data: {json}\\n\\n`` line, or None for empty lines,
+    the ``[DONE]`` sentinel (the caller emits its own), and malformed JSON
+    (dropped, not forwarded). ``model``/``id`` are re-stamped and provider
+    extras (e.g. Groq's ``x_groq``) stripped so the client never sees the
+    underlying provider.
+    """
+    line = raw_line.strip()
+    if not line.startswith("data:"):
+        return None
+    data = line[len("data:"):].strip()
+    if not data or data == "[DONE]":
+        return None
+    try:
+        obj = json.loads(data)
+    except (ValueError, TypeError):
+        return None
+
+    obj["model"] = "archer-auto"
+    obj["id"] = archer_id
+    obj.pop("x_groq", None)
+    return f"data: {json.dumps(obj)}\n\n"

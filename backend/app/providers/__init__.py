@@ -2,11 +2,13 @@
 
 from app.providers.base import BaseProvider, ProviderError
 from app.providers.groq import GroqProvider
+from app.providers.ollama import OllamaProvider
 from app.providers.openrouter import OpenRouterProvider
 
 _PROVIDERS: dict[str, BaseProvider] = {
     "groq": GroqProvider(),
     "openrouter": OpenRouterProvider(),
+    "ollama": OllamaProvider(),
 }
 
 

@@ -91,3 +91,53 @@ class BaseProvider(ABC):
             )
 
         return resp.json()
+
+    async def stream(
+        self,
+        model_id: str,
+        messages: list[ChatMessage],
+        temperature: float,
+        max_tokens: int,
+    ):
+        """Stream the provider's /chat/completions as raw SSE lines.
+
+        Same URL/headers/error-categorization as chat(); adds the streaming
+        request flags. Errors that occur before the first line is yielded raise
+        ProviderError so the proxy can fall back; errors after the first line
+        also raise ProviderError, but the proxy treats those as interruptions.
+        """
+        payload = {
+            "model": model_id,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        try:
+            async with _get_client().stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                json=payload,
+                headers=self.headers(),
+            ) as resp:
+                if resp.status_code == 429:
+                    await resp.aread()
+                    raise ProviderError("rate_limit", f"{self.name} rate limited", 429)
+                if resp.status_code >= 500:
+                    await resp.aread()
+                    raise ProviderError("server_error", f"{self.name} server error", resp.status_code)
+                if resp.status_code >= 400:
+                    await resp.aread()
+                    raise ProviderError(
+                        "client_error",
+                        f"{self.name} returned {resp.status_code}: {resp.text[:300]}",
+                        resp.status_code,
+                    )
+                async for line in resp.aiter_lines():
+                    if line:
+                        yield line
+        except httpx.TimeoutException as exc:
+            raise ProviderError("timeout", f"{self.name} timed out") from exc
+        except httpx.HTTPError as exc:
+            raise ProviderError("server_error", f"{self.name} connection error: {exc}") from exc

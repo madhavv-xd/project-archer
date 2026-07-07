@@ -12,6 +12,11 @@ MATH_KEYWORDS = {
     "calculus", "geometry",
 }
 
+WRITING_KEYWORDS = {
+    "write", "essay", "story", "poem", "blog", "email", "draft", "rewrite",
+    "paraphrase", "letter", "article", "compose",
+}
+
 ANALYSIS_KEYWORDS = {
     "analyze", "compare", "evaluate", "research", "detailed", "comprehensive",
     "tradeoffs",
@@ -41,10 +46,13 @@ def keyword_route(text: str) -> tuple[str, str]:
     if words & MATH_KEYWORDS:
         return "gpt-oss-120b-groq", "math_keywords"
 
+    if words & WRITING_KEYWORDS:
+        return "llama-4-scout-groq", "writing_keywords"
+
     if len(lowered.split()) < 15 or lowered.startswith(SIMPLE_PREFIXES):
         return "llama-3.1-8b-groq", "simple_query"
 
     if (words & ANALYSIS_KEYWORDS) or any(p in lowered for p in ANALYSIS_PHRASES):
-        return "qwen-2.5-72b-or", "analysis_keywords"
+        return "nemotron-3-super-ollama", "analysis_keywords"
 
     return "llama-3.3-70b-groq", "default"
