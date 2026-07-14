@@ -7,6 +7,7 @@ import { KeyRound, Send } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
+import { Markdown } from "@/components/playground/Markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,6 +66,30 @@ export default function PlaygroundPage() {
     setBusy(true);
     const sentAt = Date.now();
 
+    const setAssistant = (content: string, extra: Partial<Msg> = {}) =>
+      setMessages((prev) => {
+        const next = [...prev];
+        next[next.length - 1] = { role: "assistant", content, ...extra };
+        return next;
+      });
+
+    // A fast upstream (Groq) is delivered by fetch as one coalesced chunk, so
+    // reacting per-token would batch into a single paint. Decouple the reveal:
+    // the reader just fills `full`; this loop paints a slice of it per frame,
+    // draining any backlog so the reply always appears token-by-token.
+    let full = "";
+    let shown = 0;
+    let streaming = true;
+    const pacer = (async () => {
+      while (streaming || shown < full.length) {
+        if (shown < full.length) {
+          shown += Math.max(2, Math.ceil((full.length - shown) / 10));
+          setAssistant(full.slice(0, shown));
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+    })();
+
     try {
       const res = await fetch(`${API_URL}/v1/chat/completions`, {
         method: "POST",
@@ -86,7 +111,6 @@ export default function PlaygroundPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let acc = "";
       let done = false;
       while (!done) {
         const { done: streamDone, value } = await reader.read();
@@ -104,38 +128,22 @@ export default function PlaygroundPage() {
           }
           try {
             const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-            if (delta) {
-              acc += delta;
-              setMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: "assistant", content: acc };
-                return next;
-              });
-            }
+            if (delta) full += delta;
           } catch {
             /* skip malformed chunk */
           }
         }
       }
+      streaming = false;
+      await pacer; // let the reveal catch up to the full text
 
       // Reveal the real routed model once the log row lands.
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = { role: "assistant", content: acc, resolving: true };
-        return next;
-      });
+      setAssistant(full, { resolving: true });
       const resolved = await resolveModel(token, sentAt);
-      setMessages((prev) => {
-        const next = [...prev];
-        next[next.length - 1] = {
-          role: "assistant",
-          content: acc,
-          model: resolved?.model,
-          fallback: resolved?.fallback,
-        };
-        return next;
-      });
+      setAssistant(full, { model: resolved?.model, fallback: resolved?.fallback });
     } catch (e) {
+      streaming = false;
+      await pacer; // stop it writing before we remove the bubble
       setError(e instanceof Error ? e.message : "Something went wrong");
       setMessages((prev) => prev.slice(0, -1)); // drop the empty assistant bubble
     } finally {
@@ -198,10 +206,16 @@ export default function PlaygroundPage() {
                 className={
                   m.role === "user"
                     ? "max-w-[80%] rounded-lg bg-primary/10 px-3 py-2 text-sm"
-                    : "max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm"
+                    : "max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm"
                 }
               >
-                <p className="whitespace-pre-wrap">{m.content || "…"}</p>
+                {m.role === "user" ? (
+                  <p className="whitespace-pre-wrap">{m.content}</p>
+                ) : m.content ? (
+                  <Markdown>{m.content}</Markdown>
+                ) : (
+                  <p className="text-muted-foreground">…</p>
+                )}
                 {m.role === "assistant" && (m.resolving || m.model) && (
                   <p className="mt-1.5 text-xs text-muted-foreground">
                     {m.resolving && !m.model
