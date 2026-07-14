@@ -16,7 +16,7 @@ from app.core.proxy import (
     model_cache,
     stream_with_fallback,
 )
-from app.core.router import keyword_route
+from app.core.router import route
 from app.db.database import AsyncSessionLocal
 from app.db.models import ApiKey
 from app.db.repositories import requests as requests_repo
@@ -52,7 +52,8 @@ async def chat_completions(
         return await _stream_completion(request, body, api_key)
 
     query = _last_user_message(body)
-    selected_name, routing_reason = keyword_route(query)
+    decision = await route(query)
+    selected_name, routing_reason = decision.model_name, decision.routing_reason
     selected = model_cache.get(selected_name)
 
     started = time.perf_counter()
@@ -68,6 +69,8 @@ async def chat_completions(
                     api_key_id=api_key.id,
                     model_id=selected.id,
                     routing_reason=routing_reason,
+                    routing_method=decision.routing_method,
+                    shadow_routing_reason=decision.shadow_routing_reason,
                     latency_ms=latency_ms,
                     status="error",
                     error_message=str(exc),
@@ -84,6 +87,8 @@ async def chat_completions(
             api_key_id=api_key.id,
             model_id=result.model.id,
             routing_reason=result.routing_reason,
+            routing_method=decision.routing_method,
+            shadow_routing_reason=decision.shadow_routing_reason,
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
             total_tokens=usage.total_tokens,
@@ -100,7 +105,8 @@ async def _stream_completion(
     request: Request, body: ChatCompletionRequest, api_key: ApiKey
 ) -> StreamingResponse:
     query = _last_user_message(body)
-    selected_name, routing_reason = keyword_route(query)
+    decision = await route(query)
+    selected_name, routing_reason = decision.model_name, decision.routing_reason
     selected = model_cache.get(selected_name)
     archer_id = f"chatcmpl-{uuid.uuid4()}"
 
@@ -126,6 +132,8 @@ async def _stream_completion(
                     api_key_id=api_key.id,
                     model_id=selected.id,
                     routing_reason=routing_reason,
+                    routing_method=decision.routing_method,
+                    shadow_routing_reason=decision.shadow_routing_reason,
                     latency_ms=latency_ms,
                     status="error",
                     error_message=str(exc),
@@ -155,6 +163,8 @@ async def _stream_completion(
                         api_key_id=api_key.id,
                         model_id=log_model.id,
                         routing_reason=outcome.routing_reason or routing_reason,
+                        routing_method=decision.routing_method,
+                        shadow_routing_reason=decision.shadow_routing_reason,
                         prompt_tokens=usage.get("prompt_tokens"),
                         completion_tokens=usage.get("completion_tokens"),
                         total_tokens=usage.get("total_tokens"),

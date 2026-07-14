@@ -1,11 +1,13 @@
 """Request-log data access: write logs, paginate, and aggregate dashboard stats."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
+from app.core.embeddings import DOMAIN_MODEL
 from app.db.models import ApiKey, Model, RequestLog
 
 
@@ -89,4 +91,66 @@ async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
         "total_tokens": total_tokens,
         "success_rate": success_rate,
         "most_used_model": most_used[0] if most_used else None,
+    }
+
+
+def _shadow_agreement_pct(rows: list[tuple[str, str]]) -> float | None:
+    """(shadow_routing_reason, routed_model_name) pairs -> agreement %. Agreement
+    = the embedding router's domain would have routed to the same model that was
+    actually served (post-provider-fallback resolved to the routed model)."""
+    if not rows:
+        return None
+    agree = sum(
+        1
+        for reason, model in rows
+        if DOMAIN_MODEL.get(reason.removeprefix("embedding_")) == model
+    )
+    return round(agree / len(rows) * 100, 2)
+
+
+async def routing_stats_for_user(db: AsyncSession, user_id: uuid.UUID, days: int) -> dict:
+    """Phase 2B routing-stats: method split, shadow agreement, fallback rate,
+    and average latency / time-to-first-token over the last `days`."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    base = _user_logs_query(user_id).where(RequestLog.created_at >= since).subquery()
+
+    agg = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(base.c.routing_method == "embedding"),
+                func.count().filter(base.c.routing_method == "keyword"),
+                func.count().filter(base.c.fallback_used.is_(True)),
+                func.avg(base.c.latency_ms),
+                func.avg(base.c.time_to_first_token_ms),
+            ).select_from(base)
+        )
+    ).one()
+    total = int(agg[0] or 0)
+    embedding_count = int(agg[1] or 0)
+    keyword_count = int(agg[2] or 0)
+    fallback_count = int(agg[3] or 0)
+
+    # Shadow rows: embedding's choice vs the routed model (original pick if a
+    # provider-level fallback fired, else the served model).
+    routed = aliased(Model)
+    routed_id = func.coalesce(base.c.original_model_id, base.c.model_id)
+    shadow_rows = (
+        await db.execute(
+            select(base.c.shadow_routing_reason, routed.name)
+            .select_from(base)
+            .join(routed, routed.id == routed_id)
+            .where(base.c.shadow_routing_reason.isnot(None))
+        )
+    ).all()
+
+    return {
+        "days": days,
+        "total_requests": total,
+        "keyword_count": keyword_count,
+        "embedding_count": embedding_count,
+        "shadow_agreement_pct": _shadow_agreement_pct([(r, m) for r, m in shadow_rows]),
+        "fallback_rate": round(fallback_count / total * 100, 2) if total else 0.0,
+        "avg_latency_ms": round(float(agg[4]), 2) if agg[4] is not None else None,
+        "avg_time_to_first_token_ms": round(float(agg[5]), 2) if agg[5] is not None else None,
     }

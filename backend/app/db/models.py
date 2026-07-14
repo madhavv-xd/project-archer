@@ -130,6 +130,10 @@ class RequestLog(Base):
         UUID(as_uuid=True), ForeignKey("models.id"), nullable=False
     )
     routing_reason: Mapped[str] = mapped_column(String(100), nullable=False)
+    routing_method: Mapped[str] = mapped_column(
+        String(20), server_default="keyword", nullable=False
+    )
+    shadow_routing_reason: Mapped[str | None] = mapped_column(String(100))
     prompt_tokens: Mapped[int | None] = mapped_column(Integer)
     completion_tokens: Mapped[int | None] = mapped_column(Integer)
     total_tokens: Mapped[int | None] = mapped_column(Integer)

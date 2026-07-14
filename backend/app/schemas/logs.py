@@ -25,3 +25,14 @@ class DashboardStats(BaseModel):
     total_tokens: int
     success_rate: float
     most_used_model: str | None
+
+
+class RoutingStats(BaseModel):
+    days: int
+    total_requests: int
+    keyword_count: int
+    embedding_count: int
+    shadow_agreement_pct: float | None
+    fallback_rate: float
+    avg_latency_ms: float | None
+    avg_time_to_first_token_ms: float | None

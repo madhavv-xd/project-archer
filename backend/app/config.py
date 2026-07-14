@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_RPM: int = 30
     MONTHLY_QUOTA_REQUESTS: int = 10000
 
+    # Embedding routing (Phase 2B). ROUTING_MODE: keyword (default) | shadow |
+    # embedding. Empty EMBEDDING_API_KEY = embedding routing disabled (always
+    # falls back to keyword). See openspec/changes/phase-2b-embedding-routing.
+    ROUTING_MODE: str = "keyword"
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_SIMILARITY_THRESHOLD: float = 0.35
+
     @property
     def plan_limits(self) -> dict[str, dict[str, int]]:
         """Per-plan limits, resolved from env overrides. Single 'free' plan in 2A."""

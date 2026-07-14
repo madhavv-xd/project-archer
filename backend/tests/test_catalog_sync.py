@@ -8,8 +8,11 @@ fail the build on drift instead of relying on convention.
 import importlib.util
 from pathlib import Path
 
+from app.core.embeddings import DOMAIN_MODEL
 from app.core.proxy import FALLBACK_CHAIN
 from app.core.router import keyword_route
+
+SPEC_DOMAINS = {"coding", "math", "writing", "simple", "analysis", "general"}
 
 # The 5 models seeded by 001_initial (frozen). The 003 migration then removes
 # some of these and adds new ones; both deltas are read live from that migration
@@ -65,3 +68,13 @@ def test_every_router_target_is_a_seeded_model():
     ]
     targets = {keyword_route(q)[0] for q in probes}
     assert targets <= SEED_NAMES
+
+
+def test_domain_model_keys_are_exactly_the_six_domains():
+    # Fourth file in the catalog-sync web (Phase 2B): DOMAIN_MODEL must cover the
+    # 6 spec domains and target only seeded models (or shadow agreement breaks).
+    assert set(DOMAIN_MODEL.keys()) == SPEC_DOMAINS
+
+
+def test_every_domain_model_target_is_a_seeded_model():
+    assert set(DOMAIN_MODEL.values()) <= SEED_NAMES
