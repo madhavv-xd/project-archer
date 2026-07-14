@@ -27,6 +27,7 @@ export const config = {
     "/api-keys/:path*",
     "/models/:path*",
     "/logs/:path*",
+    "/playground/:path*",
     "/login",
     "/register",
   ],

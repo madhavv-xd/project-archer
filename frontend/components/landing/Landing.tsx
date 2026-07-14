@@ -21,9 +21,13 @@ import { CodeBlock } from "./CodeBlock";
 const MODELS = [
   { name: "llama-3.3-70b", provider: "Groq", best: "Coding, reasoning & the default shot" },
   { name: "gpt-oss-120b", provider: "Groq", best: "Math and hard, multi-step problems" },
+  { name: "llama-4-scout", provider: "Groq", best: "Writing and long-context drafting" },
   { name: "llama-3.1-8b", provider: "Groq", best: "Fast replies to short, simple asks" },
-  { name: "qwen-2.5-72b", provider: "OpenRouter", best: "Analysis, comparison & deep dives" },
-  { name: "gpt-oss-20b", provider: "Groq", best: "Writing and conversational turns" },
+  { name: "gpt-oss-20b", provider: "Groq", best: "Quick conversational turns" },
+  { name: "qwen3-coder-480b", provider: "Ollama", best: "Coding across huge codebases" },
+  { name: "glm-4.7", provider: "Ollama", best: "General reasoning & writing" },
+  { name: "minimax-m3", provider: "Ollama", best: "Very long-context analysis" },
+  { name: "nemotron-3-super", provider: "Ollama", best: "Analysis & step-by-step reasoning" },
 ];
 
 const FEATURES = [
@@ -49,7 +53,7 @@ resp = client.chat.completions.create(
 )
 print(resp.choices[0].message.content)`;
 
-export function Landing({ isAuthed }: { isAuthed: boolean }) {
+export function Landing({ isAuthed, modelCount }: { isAuthed: boolean; modelCount: number }) {
   const targetRef = useRef<HTMLDivElement>(null);
 
   // Subtle scroll parallax on the hero target (skipped under reduced motion).
@@ -131,7 +135,7 @@ export function Landing({ isAuthed }: { isAuthed: boolean }) {
                 <b>OpenAI-compatible</b> /v1
               </span>
               <span>
-                <b>5</b> models, one target
+                <b>{modelCount}</b> models, one target
               </span>
               <span>
                 <b>Automatic</b> fallback
@@ -196,7 +200,7 @@ export function Landing({ isAuthed }: { isAuthed: boolean }) {
         <div className="lp-wrap">
           <Reveal className="lp-section-head">
             <span className="lp-eyebrow">The quiver</span>
-            <h2 className="lp-h2 lp-display">Five models. One target.</h2>
+            <h2 className="lp-h2 lp-display">{modelCount} models. One target.</h2>
             <p className="lp-section-sub">
               A curated pool sits behind your key. You never pick from it — Archer draws
               the right one for every request.

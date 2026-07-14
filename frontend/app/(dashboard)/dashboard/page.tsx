@@ -5,21 +5,29 @@ import { useSession } from "next-auth/react";
 import { Activity, CalendarClock, Coins, Target } from "lucide-react";
 
 import { api } from "@/lib/api";
-import type { DashboardStats, RequestLog } from "@/types";
+import type { DashboardStats, ModelDistribution, RequestLog, UsageDaily } from "@/types";
 import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentRequests } from "@/components/dashboard/RecentRequests";
+import { UsageChart } from "@/components/dashboard/UsageChart";
+import { ModelDistributionChart } from "@/components/dashboard/ModelDistributionChart";
+import { CostSavedCard } from "@/components/dashboard/CostSavedCard";
+import { QuotaMeter } from "@/components/dashboard/QuotaMeter";
 
 export default function DashboardPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [logs, setLogs] = useState<RequestLog[]>([]);
+  const [usage, setUsage] = useState<UsageDaily[]>([]);
+  const [distribution, setDistribution] = useState<ModelDistribution[]>([]);
 
   useEffect(() => {
     if (!token) return;
     api.stats(token).then(setStats);
     api.logs(token, 1, 10).then((res) => setLogs(res.items));
+    api.usageDaily(token).then(setUsage);
+    api.modelDistribution(token).then(setDistribution);
   }, [token]);
 
   return (
@@ -48,6 +56,17 @@ export default function DashboardPage() {
             icon={Target}
           />
         </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <CostSavedCard totalTokens={stats?.total_tokens ?? 0} />
+          <QuotaMeter used={stats?.requests_this_month ?? 0} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <UsageChart data={usage} />
+          <ModelDistributionChart data={distribution} />
+        </div>
+
         <div className="mt-6">
           <RecentRequests logs={logs} />
         </div>

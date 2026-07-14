@@ -50,7 +50,21 @@ export interface Paginated<T> {
 export interface DashboardStats {
   total_requests: number;
   requests_today: number;
+  requests_this_month: number;
   total_tokens: number;
   success_rate: number;
   most_used_model: string | null;
+}
+
+export interface UsageDaily {
+  day: string;
+  requests: number;
+  tokens: number;
+  errors: number;
+}
+
+export interface ModelDistribution {
+  model: string;
+  count: number;
+  percentage: number;
 }

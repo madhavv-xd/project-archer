@@ -3,8 +3,10 @@ import type {
   CreatedApiKey,
   DashboardStats,
   Model,
+  ModelDistribution,
   Paginated,
   RequestLog,
+  UsageDaily,
 } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -52,6 +54,10 @@ export async function register(input: {
 
 export const api = {
   stats: (token: string) => request<DashboardStats>("/dashboard/stats", token),
+  usageDaily: (token: string, days = 30) =>
+    request<UsageDaily[]>(`/dashboard/usage-daily?days=${days}`, token),
+  modelDistribution: (token: string, days = 30) =>
+    request<ModelDistribution[]>(`/dashboard/model-distribution?days=${days}`, token),
   models: (token: string) => request<Model[]>("/models", token),
   logs: (token: string, page = 1, limit = 20) =>
     request<Paginated<RequestLog>>(`/logs?page=${page}&limit=${limit}`, token),

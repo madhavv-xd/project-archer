@@ -54,9 +54,11 @@ async def recent_for_user(
 async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
     base = _user_logs_query(user_id).subquery()
 
-    start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    now = datetime.now(timezone.utc)
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    # One pass over the logs for all four scalar aggregates (FILTER avoids
+    # One pass over the logs for all scalar aggregates (FILTER avoids
     # separate round-trips for the conditional counts).
     agg = (
         await db.execute(
@@ -65,6 +67,7 @@ async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
                 func.count().filter(base.c.created_at >= start_of_day),
                 func.coalesce(func.sum(base.c.total_tokens), 0),
                 func.count().filter(base.c.status == "success"),
+                func.count().filter(base.c.created_at >= start_of_month),
             ).select_from(base)
         )
     ).one()
@@ -72,6 +75,7 @@ async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
     requests_today = int(agg[1] or 0)
     total_tokens = int(agg[2] or 0)
     successes = int(agg[3] or 0)
+    requests_this_month = int(agg[4] or 0)
     success_rate = round((successes / total_requests) * 100, 2) if total_requests else 0.0
 
     # Most-used model (by name)
@@ -88,6 +92,7 @@ async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
     return {
         "total_requests": total_requests,
         "requests_today": requests_today,
+        "requests_this_month": requests_this_month,
         "total_tokens": total_tokens,
         "success_rate": success_rate,
         "most_used_model": most_used[0] if most_used else None,
@@ -106,6 +111,59 @@ def _shadow_agreement_pct(rows: list[tuple[str, str]]) -> float | None:
         if DOMAIN_MODEL.get(reason.removeprefix("embedding_")) == model
     )
     return round(agree / len(rows) * 100, 2)
+
+
+async def usage_daily_for_user(db: AsyncSession, user_id: uuid.UUID, days: int) -> list[dict]:
+    """Per-day request count, token sum, and error count over the last `days`."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    base = _user_logs_query(user_id).where(RequestLog.created_at >= since).subquery()
+    day = func.date(base.c.created_at)
+
+    rows = (
+        await db.execute(
+            select(
+                day.label("day"),
+                func.count(),
+                func.coalesce(func.sum(base.c.total_tokens), 0),
+                func.count().filter(base.c.status == "error"),
+            )
+            .select_from(base)
+            .group_by(day)
+            .order_by(day)
+        )
+    ).all()
+    return [
+        {"day": r[0], "requests": int(r[1]), "tokens": int(r[2]), "errors": int(r[3])}
+        for r in rows
+    ]
+
+
+def _distribution_from_counts(rows: list[tuple[str, int]]) -> list[dict]:
+    """(model_name, count) pairs -> per-model count + percentage of the total."""
+    total = sum(c for _, c in rows)
+    return [
+        {"model": name, "count": int(c), "percentage": round(c / total * 100, 2) if total else 0.0}
+        for name, c in rows
+    ]
+
+
+async def model_distribution_for_user(
+    db: AsyncSession, user_id: uuid.UUID, days: int
+) -> list[dict]:
+    """Which models actually answered, and how often, over the last `days`."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    base = _user_logs_query(user_id).where(RequestLog.created_at >= since).subquery()
+
+    rows = (
+        await db.execute(
+            select(Model.display_name, func.count())
+            .select_from(base)
+            .join(Model, Model.id == base.c.model_id)
+            .group_by(Model.display_name)
+            .order_by(func.count().desc())
+        )
+    ).all()
+    return _distribution_from_counts([(name, c) for name, c in rows])
 
 
 async def routing_stats_for_user(db: AsyncSession, user_id: uuid.UUID, days: int) -> dict:

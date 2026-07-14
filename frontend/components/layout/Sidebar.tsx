@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { KeyRound, LayoutDashboard, LogOut, ScrollText, Boxes } from "lucide-react";
+import { KeyRound, LayoutDashboard, LogOut, ScrollText, Boxes, MessagesSquare } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Brandmark } from "@/components/layout/Brandmark";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/playground", label: "Playground", icon: MessagesSquare },
   { href: "/api-keys", label: "API Keys", icon: KeyRound },
   { href: "/models", label: "Models", icon: Boxes },
   { href: "/logs", label: "Logs", icon: ScrollText },

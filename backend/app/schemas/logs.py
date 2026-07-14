@@ -1,7 +1,7 @@
 """Request-log response schemas."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -22,9 +22,23 @@ class RequestLogResponse(BaseModel):
 class DashboardStats(BaseModel):
     total_requests: int
     requests_today: int
+    requests_this_month: int
     total_tokens: int
     success_rate: float
     most_used_model: str | None
+
+
+class UsageDailyEntry(BaseModel):
+    day: date
+    requests: int
+    tokens: int
+    errors: int
+
+
+class ModelDistributionEntry(BaseModel):
+    model: str
+    count: int
+    percentage: float
 
 
 class RoutingStats(BaseModel):
