@@ -21,19 +21,10 @@ logger = logging.getLogger("archer.embeddings")
 JINA_URL = "https://api.jina.ai/v1/embeddings"
 JINA_MODEL = "jina-embeddings-v3"
 
-# domain -> the SAME model name router.py's keyword_route() targets for that
-# domain. A fourth file in the catalog-sync web (seed / router.py / proxy.py /
-# here) — kept in sync by inspection, enforced by tests/test_catalog_sync.py.
-# Both engines must target the same model per domain or shadow "agreement" is
-# meaningless (design.md decision 2).
-DOMAIN_MODEL = {
-    "coding": "llama-3.3-70b-groq",
-    "math": "gpt-oss-120b-groq",
-    "writing": "llama-4-scout-groq",
-    "simple": "llama-3.1-8b-groq",
-    "analysis": "nemotron-3-super-ollama",
-    "general": "llama-3.3-70b-groq",
-}
+# The 6 routing domains embedding_route() classifies into. The domain→model
+# mapping itself is DB-driven (Phase 2E: models.routing_domains, resolved by
+# router.model_for_domain via the cache) — not hardcoded here anymore.
+DOMAINS = {"coding", "math", "writing", "simple", "analysis", "general"}
 
 _CENTROIDS_PATH = Path(__file__).parent / "centroids.json"
 

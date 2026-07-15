@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
           id: data.user.id,
           email: data.user.email,
           name: data.user.name,
+          role: data.user.role,
           accessToken: data.access_token,
         };
       },
@@ -66,18 +67,23 @@ export const authOptions: NextAuthOptions = {
         const data = await res.json();
         token.accessToken = data.access_token;
         token.id = data.user.id;
+        token.role = data.user.role;
         return token;
       }
       // Credentials sign-in: authorize() already returned the backend JWT.
       if (user) {
         token.accessToken = user.accessToken;
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken;
-      if (session.user) session.user.id = token.id;
+      if (session.user) {
+        session.user.id = token.id;
+        session.user.role = token.role;
+      }
       return session;
     },
   },

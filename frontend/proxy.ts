@@ -18,6 +18,11 @@ export async function proxy(request: NextRequest) {
   if (token && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
+  // Admin section: logged in but not an admin → bounce to dashboard. The real
+  // gate is the backend's require_admin; this just hides the UI.
+  if (pathname.startsWith("/admin") && token?.role !== "admin") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
   return NextResponse.next();
 }
 
@@ -28,6 +33,7 @@ export const config = {
     "/models/:path*",
     "/logs/:path*",
     "/playground/:path*",
+    "/admin/:path*",
     "/login",
     "/register",
   ],

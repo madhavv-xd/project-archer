@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from app.core.embeddings import DOMAIN_MODEL
+from app.core.proxy import model_cache
 from app.db.models import ApiKey, Model, RequestLog
 
 
@@ -99,16 +99,83 @@ async def stats_for_user(db: AsyncSession, user_id: uuid.UUID) -> dict:
     }
 
 
+async def platform_stats(db: AsyncSession) -> dict:
+    """Admin overview: request totals across ALL users (no per-user filter)."""
+    start_of_day = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    agg = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(RequestLog.created_at >= start_of_day),
+                func.count().filter(RequestLog.status == "error"),
+                func.count().filter(RequestLog.fallback_used.is_(True)),
+            )
+        )
+    ).one()
+    total = int(agg[0] or 0)
+    return {
+        "total_requests": total,
+        "requests_today": int(agg[1] or 0),
+        "error_rate": round(int(agg[2] or 0) / total * 100, 2) if total else 0.0,
+        "fallback_rate": round(int(agg[3] or 0) / total * 100, 2) if total else 0.0,
+    }
+
+
+async def platform_usage_daily(db: AsyncSession, days: int) -> list[dict]:
+    """Platform-wide per-day requests / tokens / errors (same shape as the
+    per-user version, without the api_key join)."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    day = func.date(RequestLog.created_at)
+    rows = (
+        await db.execute(
+            select(
+                day.label("day"),
+                func.count(),
+                func.coalesce(func.sum(RequestLog.total_tokens), 0),
+                func.count().filter(RequestLog.status == "error"),
+            )
+            .where(RequestLog.created_at >= since)
+            .group_by(day)
+            .order_by(day)
+        )
+    ).all()
+    return [
+        {"day": r[0], "requests": int(r[1]), "tokens": int(r[2]), "errors": int(r[3])}
+        for r in rows
+    ]
+
+
+async def platform_model_distribution(db: AsyncSession, days: int) -> list[dict]:
+    """Platform-wide top models over the window."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = (
+        await db.execute(
+            select(Model.display_name, func.count())
+            .select_from(RequestLog)
+            .join(Model, Model.id == RequestLog.model_id)
+            .where(RequestLog.created_at >= since)
+            .group_by(Model.display_name)
+            .order_by(func.count().desc())
+        )
+    ).all()
+    return _distribution_from_counts([(name, c) for name, c in rows])
+
+
 def _shadow_agreement_pct(rows: list[tuple[str, str]]) -> float | None:
     """(shadow_routing_reason, routed_model_name) pairs -> agreement %. Agreement
     = the embedding router's domain would have routed to the same model that was
-    actually served (post-provider-fallback resolved to the routed model)."""
+    actually served. Domain→model is resolved through the live cache (Phase 2E)."""
     if not rows:
         return None
+
+    def domain_model_name(domain: str) -> str | None:
+        m = model_cache.domain_model(domain)
+        return m.name if m else None
+
     agree = sum(
         1
         for reason, model in rows
-        if DOMAIN_MODEL.get(reason.removeprefix("embedding_")) == model
+        if domain_model_name(reason.removeprefix("embedding_")) == model
     )
     return round(agree / len(rows) * 100, 2)
 

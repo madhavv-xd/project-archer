@@ -56,6 +56,15 @@ async def get_current_user(
     return user
 
 
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Admin gate for /admin/*. Re-checks the DB every request (via
+    get_current_user), so a demotion takes effect immediately — no role in the
+    JWT to go stale (design.md decision 7)."""
+    if user.role != "admin":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+    return user
+
+
 async def _touch_last_used(key_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as session:
         await api_keys_repo.touch_last_used(session, key_id)

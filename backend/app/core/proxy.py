@@ -18,40 +18,41 @@ from app.schemas.chat import ChatCompletionResponse, ChatMessage
 
 logger = logging.getLogger("archer.proxy")
 
-# Fixed fallback order (context.md §5.9, Archer-corrected for Groq deprecations;
-# rebalanced in Phase 2A). Fast/reliable Groq models early; the large Ollama
-# Cloud models (free tier — can rate-limit) sit in the middle; the chain still
-# ends on ultra-reliable fast Groq models as the final safety net. Must contain
-# every active model name (kept in sync with the seed + router.py — see
-# tests/test_catalog_sync.py).
-FALLBACK_CHAIN = [
-    "llama-3.3-70b-groq",
-    "llama-4-scout-groq",
-    "gpt-oss-120b-groq",
-    "qwen3-coder-ollama",
-    "nemotron-3-super-ollama",
-    "minimax-m3-ollama",
-    "glm-4.7-ollama",
-    "gpt-oss-20b-groq",
-    "llama-3.1-8b-groq",
-]
-
-
 class ModelCache:
+    """In-memory view of the active catalog. Fallback order and domain→model are
+    read from DB columns (Phase 2E: models.fallback_priority / routing_domains),
+    rebuilt on every load() — so an admin toggling a model reshapes both."""
+
     def __init__(self) -> None:
         self._by_name: dict[str, Model] = {}
         self._by_id: dict[uuid.UUID, Model] = {}
+        self._chain: list[Model] = []
+        self._domain_model: dict[str, Model] = {}
 
     def load(self, models: list[Model]) -> None:
         active = [m for m in models if m.is_active]
         self._by_name = {m.name: m for m in active}
         self._by_id = {m.id: m for m in active}
+        # Fallback order = active models by ascending fallback_priority.
+        self._chain = sorted(active, key=lambda m: m.fallback_priority)
+        # Domain → the active model listing it with the lowest priority (chain is
+        # already priority-sorted, so the first to claim a domain wins the tie).
+        self._domain_model = {}
+        for m in self._chain:
+            for domain in (m.routing_domains or []):
+                self._domain_model.setdefault(domain, m)
 
     def get(self, name: str) -> Model | None:
         return self._by_name.get(name)
 
     def get_by_id(self, model_id: uuid.UUID) -> Model | None:
         return self._by_id.get(model_id)
+
+    def fallback_chain(self) -> list[Model]:
+        return self._chain
+
+    def domain_model(self, domain: str) -> Model | None:
+        return self._domain_model.get(domain)
 
     def __len__(self) -> int:
         return len(self._by_name)
@@ -84,7 +85,7 @@ async def call_with_fallback(
     selected = model_cache.get(selected_name)
 
     # Attempt order: selected model first, then the rest of the chain.
-    order = [selected_name] + [n for n in FALLBACK_CHAIN if n != selected_name]
+    order = [selected_name] + [m.name for m in model_cache.fallback_chain() if m.name != selected_name]
 
     last_error: ProviderError | None = None
     for attempt_name in order:
@@ -149,7 +150,7 @@ async def stream_with_fallback(
     has been sent to the client yet — the route primes this generator before
     building the StreamingResponse)."""
     selected = model_cache.get(selected_name)
-    order = [selected_name] + [n for n in FALLBACK_CHAIN if n != selected_name]
+    order = [selected_name] + [m.name for m in model_cache.fallback_chain() if m.name != selected_name]
 
     started = time.perf_counter()
     last_error: ProviderError | None = None

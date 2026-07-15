@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -34,6 +35,7 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     name: Mapped[str | None] = mapped_column(String(255))
     plan: Mapped[str] = mapped_column(String(20), server_default="free", nullable=False)
+    role: Mapped[str] = mapped_column(String(20), server_default="user", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -108,6 +110,12 @@ class Model(Base):
     context_window: Mapped[int] = mapped_column(Integer, nullable=False)
     speed_tier: Mapped[str] = mapped_column(String(20), nullable=False)
     best_for: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    # DB-driven routing (Phase 2E): which domains route to this model, and its
+    # position in the fallback chain. Read by proxy.ModelCache — not hardcoded.
+    routing_domains: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), server_default=text("'{}'"), nullable=False
+    )
+    fallback_priority: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

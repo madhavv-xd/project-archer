@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.routes import (
+    admin,
     api_keys,
     auth,
     chat,
@@ -85,5 +86,6 @@ app.include_router(models.router)
 app.include_router(logs.router)
 app.include_router(dashboard.router)
 app.include_router(chat.router)
+app.include_router(admin.router)
 
 #for running -> uv run uvicorn app.main:app --reload --port 8000

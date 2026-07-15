@@ -39,6 +39,18 @@ async def delete(db: AsyncSession, api_key: ApiKey) -> None:
     await db.commit()
 
 
+async def get_by_id(db: AsyncSession, key_id: uuid.UUID) -> ApiKey | None:
+    """Global lookup (any owner) — for admin moderation."""
+    return await db.get(ApiKey, key_id)
+
+
+async def set_active(db: AsyncSession, api_key: ApiKey, is_active: bool) -> ApiKey:
+    api_key.is_active = is_active
+    await db.commit()
+    await db.refresh(api_key)
+    return api_key
+
+
 async def get_with_user_by_hash(db: AsyncSession, key_hash: str) -> ApiKey | None:
     """Used by API-key auth. Eager-loads the owning user."""
     result = await db.execute(

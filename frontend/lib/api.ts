@@ -1,10 +1,13 @@
 import type {
+  AdminModel,
+  AdminUser,
   ApiKey,
   CreatedApiKey,
   DashboardStats,
   Model,
   ModelDistribution,
   Paginated,
+  PlatformOverview,
   RequestLog,
   UsageDaily,
 } from "@/types";
@@ -69,4 +72,27 @@ export const api = {
     }),
   deleteKey: (token: string, id: string) =>
     request<void>(`/api-keys/${id}`, token, { method: "DELETE" }),
+};
+
+// --- Admin (JWT, admin role) ----------------------------------------------
+
+export const adminApi = {
+  models: (token: string) => request<AdminModel[]>("/admin/models", token),
+  updateModel: (token: string, id: string, patch: Partial<AdminModel>) =>
+    request<AdminModel>(`/admin/models/${id}`, token, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  overview: (token: string) => request<PlatformOverview>("/admin/overview", token),
+  usageDaily: (token: string, days = 30) =>
+    request<UsageDaily[]>(`/admin/usage-daily?days=${days}`, token),
+  modelDistribution: (token: string, days = 30) =>
+    request<ModelDistribution[]>(`/admin/model-distribution?days=${days}`, token),
+  users: (token: string, page = 1, limit = 50) =>
+    request<Paginated<AdminUser>>(`/admin/users?page=${page}&limit=${limit}`, token),
+  setUserActive: (token: string, id: string, is_active: boolean) =>
+    request<AdminUser>(`/admin/users/${id}`, token, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active }),
+    }),
 };

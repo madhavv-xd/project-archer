@@ -68,3 +68,27 @@ export interface ModelDistribution {
   count: number;
   percentage: number;
 }
+
+export interface AdminModel extends Model {
+  routing_domains: string[];
+  fallback_priority: number;
+}
+
+export interface PlatformOverview {
+  total_users: number;
+  total_requests: number;
+  requests_today: number;
+  error_rate: number;
+  fallback_rate: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string | null;
+  plan: string;
+  role: string;
+  is_active: boolean;
+  request_count: number;
+  created_at: string;
+}

@@ -77,7 +77,7 @@ async def _stub_embedding_route(monkeypatch, result):
     monkeypatch.setattr(embeddings, "embedding_route", fake)
 
 
-async def test_shadow_mode_keyword_decides_embedding_only_logged(monkeypatch):
+async def test_shadow_mode_keyword_decides_embedding_only_logged(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "shadow")
     await _stub_embedding_route(monkeypatch, ("math", 0.9))
     d = await route("please debug this python function")  # keyword → coding
@@ -87,7 +87,7 @@ async def test_shadow_mode_keyword_decides_embedding_only_logged(monkeypatch):
     assert d.shadow_routing_reason == "embedding_math"
 
 
-async def test_shadow_mode_embedding_failure_leaves_null(monkeypatch):
+async def test_shadow_mode_embedding_failure_leaves_null(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "shadow")
     await _stub_embedding_route(monkeypatch, ("", -1.0))  # below threshold / failed
     d = await route("please debug this python function")
@@ -95,17 +95,17 @@ async def test_shadow_mode_embedding_failure_leaves_null(monkeypatch):
     assert d.shadow_routing_reason is None
 
 
-async def test_embedding_mode_high_confidence_decides(monkeypatch):
+async def test_embedding_mode_high_confidence_decides(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "embedding")
     await _stub_embedding_route(monkeypatch, ("math", 0.9))
     d = await route("some paraphrased quant question")
-    assert d.model_name == "gpt-oss-120b-groq"  # DOMAIN_MODEL["math"]
+    assert d.model_name == "gpt-oss-120b-groq"  # domain math → gpt-oss-120b via cache
     assert d.routing_reason == "embedding_math"
     assert d.routing_method == "embedding"
     assert d.shadow_routing_reason is None
 
 
-async def test_embedding_mode_below_threshold_falls_back_to_keyword(monkeypatch):
+async def test_embedding_mode_below_threshold_falls_back_to_keyword(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "embedding")
     await _stub_embedding_route(monkeypatch, ("math", 0.1))
     d = await route("please debug this python function")  # keyword → coding
@@ -114,7 +114,7 @@ async def test_embedding_mode_below_threshold_falls_back_to_keyword(monkeypatch)
     assert d.routing_method == "keyword"
 
 
-async def test_keyword_mode_never_consults_embedding(monkeypatch):
+async def test_keyword_mode_never_consults_embedding(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "keyword")
 
     async def boom(_text):
@@ -126,9 +126,9 @@ async def test_keyword_mode_never_consults_embedding(monkeypatch):
 
 
 # --- shadow agreement calc (task 4.2) --------------------------------------
-def test_shadow_agreement_pct():
+def test_shadow_agreement_pct(catalog):
     rows = [
-        ("embedding_coding", "llama-3.3-70b-groq"),   # DOMAIN_MODEL[coding] matches → agree
+        ("embedding_coding", "llama-3.3-70b-groq"),   # domain coding → llama-3.3 matches → agree
         ("embedding_math", "gpt-oss-120b-groq"),      # matches → agree
         ("embedding_math", "llama-3.1-8b-groq"),      # mismatch → disagree
     ]

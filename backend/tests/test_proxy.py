@@ -7,19 +7,19 @@ import pytest
 
 from app.core import proxy
 from app.core.proxy import (
-    FALLBACK_CHAIN,
     AllModelsUnavailable,
     StreamOutcome,
     call_with_fallback,
     model_cache,
     stream_with_fallback,
 )
-from app.db.models import Model
 from app.providers.base import ProviderError
 from app.schemas.chat import ChatMessage
 
-# Bind to the real chain so these tests move in lockstep with proxy.py.
-CHAIN = list(FALLBACK_CHAIN)
+from tests.conftest import CATALOG, catalog_models
+
+# Fallback order = catalog sorted by fallback_priority (the DB-driven chain).
+CHAIN = [name for name, _priority, _domains in sorted(CATALOG, key=lambda r: r[1])]
 
 OK = {"choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}]}
 
@@ -41,7 +41,7 @@ class FakeProvider:
 
 @pytest.fixture(autouse=True)
 def _load_models():
-    model_cache.load([Model(name=n, provider="groq", model_id=n, is_active=True) for n in CHAIN])
+    model_cache.load(catalog_models())
 
 
 @pytest.fixture
