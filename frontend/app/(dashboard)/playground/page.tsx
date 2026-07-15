@@ -103,6 +103,15 @@ export default function PlaygroundPage() {
           stream: true,
         }),
       });
+      if (res.status === 429) {
+        const retry = res.headers.get("Retry-After");
+        const code = (await res.json().catch(() => null))?.error?.code;
+        throw new Error(
+          code === "monthly_quota_exceeded"
+            ? "You've used up your monthly quota — it resets on the 1st."
+            : `You're sending requests too fast.${retry ? ` Try again in ${retry}s.` : ""}`,
+        );
+      }
       if (!res.ok || !res.body) {
         const detail = await res.json().catch(() => null);
         throw new Error(detail?.error?.message ?? detail?.detail ?? `Request failed (${res.status})`);

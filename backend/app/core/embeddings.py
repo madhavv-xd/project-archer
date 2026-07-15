@@ -8,6 +8,7 @@ block: `uv run python -m app.core.embeddings` (needs EMBEDDING_API_KEY).
 See openspec/changes/phase-2b-embedding-routing/design.md.
 """
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -66,6 +67,18 @@ async def embed(text: str) -> list[float]:
     if resp.status_code >= 400:
         raise ProviderError("server_error", f"jina returned {resp.status_code}", resp.status_code)
     return resp.json()["data"][0]["embedding"]
+
+
+async def embedding_health() -> str:
+    """'ok' | 'degraded' | 'disabled' for /health — a real embed probe (tests the
+    router's actual path), hard-capped so a slow Jina can't hang the endpoint."""
+    if not settings.EMBEDDING_API_KEY:
+        return "disabled"
+    try:
+        await asyncio.wait_for(embed("ping"), timeout=10)  # absorbs cold TLS on first poll
+        return "ok"
+    except Exception:
+        return "degraded"
 
 
 async def embedding_route(text: str) -> tuple[str, float]:

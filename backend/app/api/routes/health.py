@@ -2,6 +2,8 @@
 
 from fastapi import APIRouter, Request
 
+from app.config import settings
+from app.core.embeddings import embedding_health
 from app.core.proxy import model_cache
 
 router = APIRouter()
@@ -20,9 +22,17 @@ async def health(request: Request) -> dict:
             redis_status = "ok"
         except Exception:
             redis_status = "degraded"
+
+    try:
+        embedding_status = await embedding_health()
+    except Exception:
+        embedding_status = "degraded"
+
     return {
         "status": "ok",
         "version": VERSION,
         "models_loaded": len(model_cache),
         "redis": redis_status,
+        "embedding": embedding_status,
+        "routing_mode": settings.ROUTING_MODE,
     }

@@ -139,6 +139,32 @@ def test_shadow_agreement_empty_is_none():
     assert _shadow_agreement_pct([]) is None
 
 
+# --- embedding_health probe (2D) -------------------------------------------
+async def test_embedding_health_disabled_without_key(monkeypatch):
+    monkeypatch.setattr(settings, "EMBEDDING_API_KEY", "")
+    assert await embeddings.embedding_health() == "disabled"
+
+
+async def test_embedding_health_ok_on_success(monkeypatch):
+    monkeypatch.setattr(settings, "EMBEDDING_API_KEY", "k")
+    monkeypatch.setattr(embeddings, "embed", lambda _t: _async([0.0]))
+    assert await embeddings.embedding_health() == "ok"
+
+
+async def test_embedding_health_degraded_on_error(monkeypatch):
+    monkeypatch.setattr(settings, "EMBEDDING_API_KEY", "k")
+
+    async def boom(_t):
+        raise RuntimeError("jina down")
+
+    monkeypatch.setattr(embeddings, "embed", boom)
+    assert await embeddings.embedding_health() == "degraded"
+
+
+async def _async(v):
+    return v
+
+
 # --- latency budget (task 3.5) ---------------------------------------------
 async def test_routing_overhead_p50_under_budget(centroids, monkeypatch):
     import asyncio

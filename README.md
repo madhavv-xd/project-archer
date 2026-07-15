@@ -58,7 +58,7 @@ Check the **Logs** page to see every request — the real model used, routing re
 
 ## Project status
 
-**Phase 1 (core orchestration) and Phase 2A (streaming, rate limits, catalog expansion) are live.**
+**Phase 1 and Phase 2A–2C are live** (streaming, rate limits, semantic routing, and the full product surface).
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -68,6 +68,8 @@ Check the **Logs** page to see every request — the real model used, routing re
 | **1D** | Docker + Nginx + AWS EC2/ECR + GitHub Actions CI/CD | done |
 | **OAuth** | Google/GitHub sign-in via NextAuth, unified into the same backend JWT | done |
 | **2A** | SSE streaming, Redis rate limiting + monthly quotas, catalog rebalanced to 9 models / 2 providers | done |
+| **2B** | Embedding-based semantic routing (nearest-centroid via Jina), live at `ROUTING_MODE=embedding` with keyword fallback | done |
+| **2C** | Product surface: dashboard charts, public `/docs`, chat playground, landing stats | done |
 
 See [Roadmap](#roadmap) for what's next.
 
@@ -89,7 +91,7 @@ Archer has two architectures worth understanding separately: how a **request is 
        └─────────────>│  auth + Redis rate limit / quota check                │
                       │       │                                               │
                       │       ▼                                               │
-                      │  keyword router → picks best model                    │
+                      │  semantic router (embedding) → picks best model       │
                       │       │                                               │
                       │       ▼                                               │
                       │  provider call (Groq / Ollama Cloud) — or SSE stream  │──→ 9 free LLMs
@@ -100,7 +102,7 @@ Archer has two architectures worth understanding separately: how a **request is 
 ```
 
 **Why it's shaped this way:**
-- **Routing is keyword-based, not ML, on purpose.** The goal was to prove the orchestration concept end-to-end before spending effort on a trained router (that's a later phase). Keyword rules are cheap, deterministic, and testable (`backend/tests/test_router.py`).
+- **Routing is semantic (embedding), with keyword rules as the fallback.** Phase 2B embeds the last user message via the Jina API and matches it to 6 precomputed per-domain centroids (`app/core/embeddings.py`, pure-Python cosine, no numpy). Above the similarity threshold the embedding decides; below it (or if Jina is unreachable) it falls back to the original keyword rules — which stay cheap, deterministic, and testable (`backend/tests/test_router.py`). A *trained* ML router is still a later phase; this is training-free centroid similarity.
 - **The model cache is loaded once at startup** (`app/main.py` `lifespan`), so the hot path never hits Postgres to resolve a model name — only to log the request afterward.
 - **Fallback only retries on retryable errors** (`rate_limit`, `server_error`, `timeout`). A `client_error` is never retried, because a bad request fails identically on every model in the chain — retrying would just burn a rate-limit slot on a second provider for nothing.
 - **Streaming fallback stops at the first forwarded byte.** Once a chunk has reached the client, the response is "committed" — a mid-stream provider failure ends the stream (`stream_interrupted`) rather than silently swapping models under a caller that's already rendering tokens. Before that first byte, the chain is walked exactly like the non-streaming path. The route **primes the generator before returning `StreamingResponse`**, so an all-models-fail case still surfaces as a real `503` instead of a broken 200 stream.
@@ -109,7 +111,7 @@ Archer has two architectures worth understanding separately: how a **request is 
 
 ### Routing rules
 
-Archer inspects the last user message and runs keyword rules in priority order (`app/core/router.py`):
+Both routing engines target the same domain→model map. Embedding routing (live) picks a domain by semantic similarity; the keyword fallback picks it by rules checked in priority order (`app/core/router.py`):
 
 | Order | Route | Trigger | Model | Provider |
 |---|---|---|---|---|
@@ -133,7 +135,7 @@ Non-retryable errors stop the chain immediately. If every model fails, a `503` i
 1. **Auth** — extract Bearer token → hash with `SHA-256(key + salt)` → lookup → `401`/`403` if invalid → fire-and-forget `last_used_at` update
 2. **Rate limit / quota** — Redis sliding-window RPM check (default 30/min) + monthly quota check (default 10,000/mo); `429` + `Retry-After` + `X-RateLimit-*` headers if exceeded; skipped entirely if Redis is unconfigured
 3. **Parse body** — validate via Pydantic; `model` field is **ignored**
-4. **Route** — `keyword_route()` on the last user message → `(model_name, reason)`
+4. **Route** — `route()` on the last user message: embedding similarity if it clears the threshold, else `keyword_route()` → `(model_name, reason)`
 5. **Model lookup** — in-memory cache (populated once at startup, never hits DB on the hot path)
 6. **Provider call** — non-streaming: try selected model, then walk the fallback chain on retryable errors. Streaming: same, but only until the first SSE chunk reaches the client
 7. **Normalize** — stamp every response (or each chunk) into the `archer-auto` OpenAI-compatible shape with one stable `chatcmpl-` id
@@ -334,7 +336,7 @@ curl localhost/health
 
 ```bash
 cd backend
-uv run pytest   # test_router, test_proxy, test_normalizer, test_rate_limit, test_catalog_sync
+uv run pytest   # test_router, test_proxy, test_normalizer, test_rate_limit, test_catalog_sync, test_embeddings, test_dashboard_aggregates
 ```
 
 `test_catalog_sync.py` specifically guards against the router/proxy/seed-migration drift that's easy to introduce when adding or removing a model — it fails if `router.py`, `proxy.py`, and the DB seed ever disagree on the active model set.
@@ -347,7 +349,7 @@ uv run pytest   # test_router, test_proxy, test_normalizer, test_rate_limit, tes
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| GET | `/health` | — | status, models loaded, Redis state (`ok`/`degraded`/`disabled`) |
+| GET | `/health` | — | status, models loaded, Redis + embedding-provider state (`ok`/`degraded`/`disabled`), active `routing_mode` |
 | POST | `/auth/register` | `{email, password, name?}` | `UserResponse` |
 | POST | `/auth/login` | `{email, password}` | `{access_token, user}` |
 | POST | `/auth/oauth` | provider identity + `X-Internal-Secret` header | `{access_token, user}` (server-to-server, called by NextAuth only) |
@@ -359,7 +361,10 @@ uv run pytest   # test_router, test_proxy, test_normalizer, test_rate_limit, tes
 | GET / POST / DELETE | `/api-keys` / `/api-keys/{id}` | POST returns the full key once |
 | GET | `/models` | model catalog |
 | GET | `/logs?page=&limit=` | paginated request logs |
-| GET | `/dashboard/stats` | totals, success rate, most-used model |
+| GET | `/dashboard/stats` | totals, success rate, most-used model, month-to-date requests |
+| GET | `/dashboard/usage-daily?days=` | per-day requests / tokens / errors |
+| GET | `/dashboard/model-distribution?days=` | which models answered, and how often |
+| GET | `/dashboard/routing-stats?days=` | keyword vs embedding split, fallback rate, latency / TTFT |
 
 ### LLM API (Bearer `arch_sk_...`)
 
@@ -380,7 +385,8 @@ Every `/v1/*` response carries `X-RateLimit-Limit-Requests` / `X-RateLimit-Remai
 │   │   ├── main.py              FastAPI entry: CORS, lifespan (model cache + Redis), 7 routers
 │   │   ├── config.py            Pydantic Settings (single env-var source)
 │   │   ├── core/
-│   │   │   ├── router.py        keyword_route() — routing decision
+│   │   │   ├── router.py        route() — embedding-or-keyword routing decision
+│   │   │   ├── embeddings.py    Jina embed, per-domain centroids, semantic route
 │   │   │   ├── proxy.py         ModelCache, call_with_fallback(), stream_with_fallback()
 │   │   │   ├── normalizer.py    unify provider responses/chunks → "archer-auto"
 │   │   │   ├── rate_limit.py    Redis sliding-window RPM + monthly quota
@@ -406,7 +412,8 @@ Every `/v1/*` response carries `X-RateLimit-Limit-Requests` / `X-RateLimit-Remai
 ├── frontend/
 │   ├── app/
 │   │   ├── (auth)/              login, register pages
-│   │   ├── (dashboard)/         dashboard, api-keys, models, logs
+│   │   ├── (dashboard)/         dashboard (charts), api-keys, models, logs, playground
+│   │   ├── docs/                public quickstart + SDK/streaming/rate-limit reference
 │   │   └── api/auth/[...nextauth]/
 │   ├── lib/                     auth.ts (NextAuth), api.ts (typed fetch)
 │   ├── components/               layout, dashboard, forms, ui
@@ -426,20 +433,18 @@ Every `/v1/*` response carries `X-RateLimit-Limit-Requests` / `X-RateLimit-Remai
 
 ## Roadmap
 
-Phase 1 and Phase 2A (documented above) are complete. Planned direction beyond it (see `PHASE2.md` for the authoritative Phase 2 spec):
+Phase 1 and Phase 2A–2C (documented above) are complete. Planned direction beyond it (see `PHASE2.md` for the authoritative Phase 2 spec):
 
 | Phase | Focus | Key additions |
 |---|---|---|
-| **2B** | Smarter routing | Embedding-based routing (shadow mode first), replacing/augmenting keyword rules |
-| **2C** | Product polish | Dashboard charts, landing/docs pages |
-| **2D** | Hardening | Broader test coverage, edge-case handling |
-| **2E** | Admin | Admin panel |
+| **2D** | Hardening | Quota/limit UX, `/health` dependency + routing-mode reporting, README/ops polish |
+| **2E** | Admin | Admin panel: model catalog management, user/key moderation, DB-driven routing config |
 | **3** | Real intelligence | Trained ML routing head (Fugu-style soft-target + KL-divergence), ONNX inference, per-workspace personalization |
 | **4** | Multi-step workflows | Conductor LLM designs multi-model workflows, memory isolation, LangGraph execution |
 | **5** | Scale | ECS auto-scaling, Multi-AZ database, canary deploys, OpenTelemetry, Sentry error tracking |
 
 ### Current limitations
 
-- Routing is keyword-based, not ML — a deliberate Phase 1/2A choice, see [Request architecture](#1-request-architecture)
+- Routing is semantic (centroid similarity) with keyword fallback, not a *trained* ML router — that's Phase 3, see [Request architecture](#1-request-architecture)
 - No billing, workspaces/teams, BYOK, or multi-step workflows yet (all explicitly out of scope through Phase 2, see `PHASE2.md`)
 - Single EC2 instance, no auto-scaling or zero-downtime deploys yet (Phase 5 concerns)
