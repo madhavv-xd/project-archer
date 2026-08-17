@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Plus, Trash2 } from "lucide-react";
+import { KeyRound, Plus, Trash2 } from "lucide-react";
 
 import { api } from "@/lib/api";
 import type { ApiKey } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -54,13 +55,13 @@ export function ApiKeyList() {
       <Card>
         <CardContent className="px-0">
           {loading ? (
-            <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-              Loading…
-            </div>
+            <EmptyState title="Loading…" />
           ) : keys.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-              No API keys yet. Create one to start calling the API.
-            </div>
+            <EmptyState
+              title="No API keys yet."
+              hint="Create one to start calling the API. The full key is shown once, at creation."
+              icon={KeyRound}
+            />
           ) : (
             <Table>
               <TableHeader>

@@ -1,5 +1,6 @@
 import type { RequestLog } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -19,14 +20,17 @@ export function RequestsTable({
   logs,
   showFallback = true,
 }: {
-  logs: RequestLog[];
+  /** null = not fetched yet (render nothing); [] = fetched and empty. */
+  logs: RequestLog[] | null;
   showFallback?: boolean;
 }) {
+  if (logs === null) return null;
   if (logs.length === 0) {
     return (
-      <div className="px-3 py-8 text-center text-sm text-muted-foreground">
-        No requests yet.
-      </div>
+      <EmptyState
+        title="No requests yet."
+        hint="Point your first call at /v1/chat/completions and it will show up here."
+      />
     );
   }
 
@@ -50,9 +54,9 @@ export function RequestsTable({
             <TableCell className="whitespace-nowrap text-muted-foreground">
               {new Date(log.created_at).toLocaleString()}
             </TableCell>
-            <TableCell className="font-medium">{log.model ?? "—"}</TableCell>
+            <TableCell className="font-mono text-body-sm">{log.model ?? "—"}</TableCell>
             <TableCell>
-              <Badge variant="outline">{log.routing_reason}</Badge>
+              <Badge variant="outline" className="font-mono">{log.routing_reason}</Badge>
             </TableCell>
             <TableCell>{log.prompt_tokens ?? "—"}</TableCell>
             <TableCell>{log.completion_tokens ?? "—"}</TableCell>

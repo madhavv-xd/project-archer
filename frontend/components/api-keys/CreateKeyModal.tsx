@@ -88,7 +88,7 @@ export function CreateKeyModal({
           </form>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+            <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-body-sm text-primary">
               <TriangleAlert className="mt-0.5 size-4 shrink-0" />
               <span>
                 Copy this key now. For security, it will never be shown again.

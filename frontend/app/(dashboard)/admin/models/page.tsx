@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { adminApi } from "@/lib/api";
 import type { AdminModel } from "@/types";
 import { Header } from "@/components/layout/Header";
+import { PageBody } from "@/components/layout/PageBody";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -109,7 +110,7 @@ export default function AdminModelsPage() {
         title="Manage Models"
         subtitle="Toggle a model, repoint a domain, or reorder fallback — live, no deploy."
       />
-      <main className="flex-1 overflow-y-auto p-6">
+      <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-muted-foreground">
@@ -134,7 +135,7 @@ export default function AdminModelsPage() {
           general). Lower priority = tried earlier in the fallback chain. Changes take effect on
           the next request.
         </p>
-      </main>
+      </PageBody>
     </>
   );
 }

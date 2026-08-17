@@ -7,6 +7,7 @@ import { Activity, CalendarClock, Coins, Target } from "lucide-react";
 import { api } from "@/lib/api";
 import type { DashboardStats, ModelDistribution, RequestLog, UsageDaily } from "@/types";
 import { Header } from "@/components/layout/Header";
+import { PageBody } from "@/components/layout/PageBody";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentRequests } from "@/components/dashboard/RecentRequests";
 import { UsageChart } from "@/components/dashboard/UsageChart";
@@ -18,9 +19,9 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [logs, setLogs] = useState<RequestLog[]>([]);
-  const [usage, setUsage] = useState<UsageDaily[]>([]);
-  const [distribution, setDistribution] = useState<ModelDistribution[]>([]);
+  const [logs, setLogs] = useState<RequestLog[] | null>(null);
+  const [usage, setUsage] = useState<UsageDaily[] | null>(null);
+  const [distribution, setDistribution] = useState<ModelDistribution[] | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -33,7 +34,7 @@ export default function DashboardPage() {
   return (
     <>
       <Header title="Dashboard" subtitle="Every shot you've taken, at a glance." />
-      <main className="flex-1 overflow-y-auto p-6">
+      <PageBody>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             label="Total Requests"
@@ -70,7 +71,7 @@ export default function DashboardPage() {
         <div className="mt-6">
           <RecentRequests logs={logs} />
         </div>
-      </main>
+      </PageBody>
     </>
   );
 }

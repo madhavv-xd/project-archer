@@ -1,26 +1,17 @@
 import { PiggyBank } from "lucide-react";
 
 import { estimateCostSaved } from "@/lib/pricing";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatsCard } from "@/components/dashboard/StatsCard";
 
+/** Was a hand-rolled copy of StatsCard's markup plus a footnote, so the two
+ *  drifted apart on spacing and type. Now just StatsCard with a `note`. */
 export function CostSavedCard({ totalTokens }: { totalTokens: number }) {
-  const saved = estimateCostSaved(totalTokens);
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">Est. cost saved</div>
-          <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
-            <PiggyBank className="size-4" />
-          </span>
-        </div>
-        <div className="mt-2 font-display text-3xl font-bold tracking-tight">
-          ${saved.toFixed(2)}
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          estimated vs. a premium model, on {totalTokens.toLocaleString()} tokens
-        </p>
-      </CardContent>
-    </Card>
+    <StatsCard
+      label="Est. cost saved"
+      value={`$${estimateCostSaved(totalTokens).toFixed(2)}`}
+      icon={PiggyBank}
+      note={`estimated vs. a premium model, on ${totalTokens.toLocaleString()} tokens`}
+    />
   );
 }

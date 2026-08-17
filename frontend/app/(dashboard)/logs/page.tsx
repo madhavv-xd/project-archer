@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { api } from "@/lib/api";
 import type { Paginated, RequestLog } from "@/types";
 import { Header } from "@/components/layout/Header";
+import { PageBody } from "@/components/layout/PageBody";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RequestsTable } from "@/components/logs/RequestsTable";
@@ -26,10 +27,10 @@ export default function LogsPage() {
   return (
     <>
       <Header title="Logs" subtitle="Every request, and the model that answered it." />
-      <main className="flex-1 overflow-y-auto p-6">
+      <PageBody>
         <Card>
           <CardContent className="px-0">
-            <RequestsTable logs={data?.items ?? []} />
+            <RequestsTable logs={data?.items ?? null} />
           </CardContent>
         </Card>
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
@@ -58,7 +59,7 @@ export default function LogsPage() {
             </Button>
           </div>
         </div>
-      </main>
+      </PageBody>
     </>
   );
 }

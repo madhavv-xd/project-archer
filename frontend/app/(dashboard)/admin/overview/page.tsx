@@ -7,6 +7,7 @@ import { Activity, AlertTriangle, Repeat, Users } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import type { ModelDistribution, PlatformOverview, UsageDaily } from "@/types";
 import { Header } from "@/components/layout/Header";
+import { PageBody } from "@/components/layout/PageBody";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { UsageChart } from "@/components/dashboard/UsageChart";
 import { ModelDistributionChart } from "@/components/dashboard/ModelDistributionChart";
@@ -28,7 +29,7 @@ export default function AdminOverviewPage() {
   return (
     <>
       <Header title="Platform Overview" subtitle="Every user's traffic, across the platform." />
-      <main className="flex-1 overflow-y-auto p-6">
+      <PageBody>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard label="Total Users" value={ov?.total_users ?? "—"} icon={Users} />
           <StatsCard label="Total Requests" value={ov?.total_requests ?? "—"} icon={Activity} />
@@ -39,7 +40,7 @@ export default function AdminOverviewPage() {
           <UsageChart data={usage} />
           <ModelDistributionChart data={dist} />
         </div>
-      </main>
+      </PageBody>
     </>
   );
 }

@@ -8,7 +8,11 @@ export function QuotaMeter({ used }: { used: number }) {
   const pct = Math.min(100, Math.round(rawPct));
   const state = rawPct >= 100 ? "over" : rawPct >= 80 ? "warn" : "normal";
   const barColor =
-    state === "over" ? "bg-destructive" : state === "warn" ? "bg-amber-500" : "bg-primary";
+    state === "over"
+      ? "bg-destructive"
+      : state === "warn"
+        ? "bg-primary"
+        : "bg-muted-foreground";
   const note =
     state === "over"
       ? "Quota reached — new requests are rejected until it resets on the 1st."

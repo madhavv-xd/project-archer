@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { adminApi } from "@/lib/api";
 import type { AdminUser } from "@/types";
 import { Header } from "@/components/layout/Header";
+import { PageBody } from "@/components/layout/PageBody";
 import { Button } from "@/components/ui/button";
 
 export default function AdminUsersPage() {
@@ -33,7 +34,7 @@ export default function AdminUsersPage() {
   return (
     <>
       <Header title="Users" subtitle="Deactivate an abuser and their keys stop working immediately." />
-      <main className="flex-1 overflow-y-auto p-6">
+      <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="border-b border-border text-left text-muted-foreground">
@@ -79,7 +80,7 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-      </main>
+      </PageBody>
     </>
   );
 }
