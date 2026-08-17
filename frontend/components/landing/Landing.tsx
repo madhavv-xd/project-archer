@@ -19,15 +19,14 @@ import { TargetShot } from "./TargetShot";
 import { CodeBlock } from "./CodeBlock";
 
 const MODELS = [
-  { name: "llama-3.3-70b", provider: "Groq", best: "Coding, reasoning & the default shot" },
-  { name: "gpt-oss-120b", provider: "Groq", best: "Math and hard, multi-step problems" },
-  { name: "llama-4-scout", provider: "Groq", best: "Writing and long-context drafting" },
-  { name: "llama-3.1-8b", provider: "Groq", best: "Fast replies to short, simple asks" },
+  { name: "gpt-oss-120b", provider: "Groq", best: "Code, math & the default shot" },
+  { name: "qwen3.6-27b", provider: "Groq", best: "Fast replies to short, simple asks" },
   { name: "gpt-oss-20b", provider: "Groq", best: "Quick conversational turns" },
-  { name: "qwen3-coder-480b", provider: "Ollama", best: "Coding across huge codebases" },
-  { name: "glm-4.7", provider: "Ollama", best: "General reasoning & writing" },
+  { name: "nemotron-3-nano", provider: "Ollama", best: "Light general-purpose work" },
+  { name: "nemotron-3-ultra", provider: "Ollama", best: "Analysis & step-by-step reasoning" },
+  { name: "nemotron-3-super", provider: "Ollama", best: "Deep reasoning, held in reserve" },
   { name: "minimax-m3", provider: "Ollama", best: "Very long-context analysis" },
-  { name: "nemotron-3-super", provider: "Ollama", best: "Analysis & step-by-step reasoning" },
+  { name: "gemma4-31b", provider: "Ollama", best: "Writing and long-form drafting" },
 ];
 
 const FEATURES = [

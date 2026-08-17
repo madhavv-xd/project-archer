@@ -69,19 +69,26 @@ def test_coding_beats_math_on_priority():
     assert reason == "coding_keywords"
 
 
-def test_domain_resolves_to_backfilled_model(catalog):
-    # DB-driven resolution must reproduce the pre-2E hardcoded targets.
-    assert model_for_domain("coding") == "llama-3.3-70b-groq"
+def test_domain_resolves_to_active_model(catalog):
+    assert model_for_domain("coding") == "gpt-oss-120b-groq"
     assert model_for_domain("math") == "gpt-oss-120b-groq"
-    assert model_for_domain("writing") == "llama-4-scout-groq"
-    assert model_for_domain("simple") == "llama-3.1-8b-groq"
-    assert model_for_domain("analysis") == "nemotron-3-super-ollama"
-    assert model_for_domain("general") == "llama-3.3-70b-groq"
+    assert model_for_domain("writing") == "gemma4-31b-ollama"
+    assert model_for_domain("simple") == "qwen3.6-27b-groq"
+    assert model_for_domain("analysis") == "nemotron-3-ultra-ollama"
+    assert model_for_domain("general") == "gpt-oss-20b-groq"
+
+
+def test_every_emittable_domain_is_claimed(catalog):
+    # Every domain the keyword/embedding routers can emit must be claimed by an
+    # active model. If one is not, model_for_domain() silently returns chain[0]
+    # and the routing decision is discarded — the 007 failure mode.
+    for domain in ("coding", "math", "writing", "simple", "general", "analysis"):
+        assert model_cache.domain_model(domain) is not None, f"{domain} has no active model"
 
 
 def test_unassigned_domain_falls_back_to_first_in_chain(catalog):
     # A domain nothing is assigned to resolves to the lowest-priority model.
-    assert model_for_domain("nonexistent") == "llama-3.3-70b-groq"
+    assert model_for_domain("nonexistent") == "gpt-oss-120b-groq"
 
 
 def test_empty_cache_never_crashes():

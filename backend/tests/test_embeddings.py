@@ -81,7 +81,7 @@ async def test_shadow_mode_keyword_decides_embedding_only_logged(monkeypatch, ca
     monkeypatch.setattr(settings, "ROUTING_MODE", "shadow")
     await _stub_embedding_route(monkeypatch, ("math", 0.9))
     d = await route("please debug this python function")  # keyword → coding
-    assert d.model_name == "llama-3.3-70b-groq"
+    assert d.model_name == "gpt-oss-120b-groq"
     assert d.routing_reason == "coding_keywords"
     assert d.routing_method == "keyword"
     assert d.shadow_routing_reason == "embedding_math"
@@ -109,7 +109,7 @@ async def test_embedding_mode_below_threshold_falls_back_to_keyword(monkeypatch,
     monkeypatch.setattr(settings, "ROUTING_MODE", "embedding")
     await _stub_embedding_route(monkeypatch, ("math", 0.1))
     d = await route("please debug this python function")  # keyword → coding
-    assert d.model_name == "llama-3.3-70b-groq"
+    assert d.model_name == "gpt-oss-120b-groq"
     assert d.routing_reason == "coding_keywords"  # plain keyword reason, no prefix
     assert d.routing_method == "keyword"
 
@@ -122,15 +122,15 @@ async def test_keyword_mode_never_consults_embedding(monkeypatch, catalog):
 
     monkeypatch.setattr(embeddings, "embedding_route", boom)
     d = await route("please debug this python function")
-    assert d == ("llama-3.3-70b-groq", "coding_keywords", "keyword", None)
+    assert d == ("gpt-oss-120b-groq", "coding_keywords", "keyword", None)
 
 
 # --- shadow agreement calc (task 4.2) --------------------------------------
 def test_shadow_agreement_pct(catalog):
     rows = [
-        ("embedding_coding", "llama-3.3-70b-groq"),   # domain coding → llama-3.3 matches → agree
+        ("embedding_coding", "gpt-oss-120b-groq"),   # domain coding → gpt-oss-120b matches → agree
         ("embedding_math", "gpt-oss-120b-groq"),      # matches → agree
-        ("embedding_math", "llama-3.1-8b-groq"),      # mismatch → disagree
+        ("embedding_math", "qwen3.6-27b-groq"),       # mismatch → disagree
     ]
     assert _shadow_agreement_pct(rows) == pytest.approx(66.67)
 

@@ -1,10 +1,12 @@
 /** The signature: an archery target whose bullseye is `archer-auto`, ringed by
-    the five real models, with arrows that land dead center. */
+    five of the live models, with arrows that land dead center.
+    Short names sit on the left/right edges (m2/m5) — those tags overhang the
+    target by half their width, so length shows there first. */
 const MODELS = [
-  { name: "llama-3.3-70b", cls: "m1" },
-  { name: "gpt-oss-120b", cls: "m2" },
-  { name: "qwen-2.5-72b", cls: "m3" },
-  { name: "llama-3.1-8b", cls: "m4" },
+  { name: "gpt-oss-120b", cls: "m1" },
+  { name: "gemma4-31b", cls: "m2" },
+  { name: "nemotron-3-ultra", cls: "m3" },
+  { name: "qwen3.6-27b", cls: "m4" },
   { name: "gpt-oss-20b", cls: "m5" },
 ];
 

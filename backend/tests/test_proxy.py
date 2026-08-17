@@ -66,23 +66,23 @@ async def test_selected_succeeds_without_fallback(monkeypatch, messages):
 
 
 async def test_retryable_error_walks_to_next_model(monkeypatch, messages):
-    calls = _patch(monkeypatch, {"llama-3.3-70b-groq": ProviderError("rate_limit", "429")})
-    result = await call_with_fallback("llama-3.3-70b-groq", "coding_keywords", messages, 1.0, 128)
+    calls = _patch(monkeypatch, {"gpt-oss-120b-groq": ProviderError("rate_limit", "429")})
+    result = await call_with_fallback("gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128)
 
     assert result.fallback_used is True
     assert result.routing_reason == "coding_keywords_fallback"
-    assert result.model.name == "llama-4-scout-groq"  # next in FALLBACK_CHAIN
-    assert calls == ["llama-3.3-70b-groq", "llama-4-scout-groq"]
+    assert result.model.name == "qwen3.6-27b-groq"  # next by fallback_priority
+    assert calls == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
 
 
 async def test_client_error_stops_the_chain(monkeypatch, messages):
-    calls = _patch(monkeypatch, {"llama-3.3-70b-groq": ProviderError("client_error", "400")})
+    calls = _patch(monkeypatch, {"gpt-oss-120b-groq": ProviderError("client_error", "400")})
 
     with pytest.raises(AllModelsUnavailable):
-        await call_with_fallback("llama-3.3-70b-groq", "coding_keywords", messages, 1.0, 128)
+        await call_with_fallback("gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128)
 
     # Did NOT fan out to the other four models.
-    assert calls == ["llama-3.3-70b-groq"]
+    assert calls == ["gpt-oss-120b-groq"]
 
 
 # ---- streaming (stream_with_fallback) ----------------------------------------
@@ -130,23 +130,23 @@ async def _drain(agen) -> list[str]:
 
 async def test_stream_fallback_before_first_byte(monkeypatch, messages):
     calls = _patch_stream(
-        monkeypatch, {"llama-3.3-70b-groq": ([], ProviderError("rate_limit", "429"))}
+        monkeypatch, {"gpt-oss-120b-groq": ([], ProviderError("rate_limit", "429"))}
     )
     outcome = StreamOutcome()
     chunks = await _drain(
         stream_with_fallback(
-            "llama-3.3-70b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-x", outcome
+            "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-x", outcome
         )
     )
 
     assert outcome.fallback_used is True
-    assert outcome.model.name == "llama-4-scout-groq"  # next in FALLBACK_CHAIN
-    assert outcome.original_model.name == "llama-3.3-70b-groq"
+    assert outcome.model.name == "qwen3.6-27b-groq"  # next by fallback_priority
+    assert outcome.original_model.name == "gpt-oss-120b-groq"
     assert outcome.routing_reason == "coding_keywords_fallback"
     assert outcome.ttft_ms is not None
     assert outcome.usage["total_tokens"] == 10
     assert outcome.interrupted is False
-    assert calls == ["llama-3.3-70b-groq", "llama-4-scout-groq"]
+    assert calls == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
     assert chunks[-1] == "data: [DONE]\n\n"
 
 
@@ -179,7 +179,7 @@ async def test_stream_all_fail_before_byte_raises(monkeypatch, messages):
     with pytest.raises(AllModelsUnavailable):
         await _drain(
             stream_with_fallback(
-                "llama-3.3-70b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-z", outcome
+                "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-z", outcome
             )
         )
 
@@ -189,15 +189,15 @@ async def test_stream_all_fail_before_byte_raises(monkeypatch, messages):
 
 async def test_stream_client_error_stops_chain(monkeypatch, messages):
     calls = _patch_stream(
-        monkeypatch, {"llama-3.3-70b-groq": ([], ProviderError("client_error", "400"))}
+        monkeypatch, {"gpt-oss-120b-groq": ([], ProviderError("client_error", "400"))}
     )
     outcome = StreamOutcome()
 
     with pytest.raises(AllModelsUnavailable):
         await _drain(
             stream_with_fallback(
-                "llama-3.3-70b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-c", outcome
+                "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128, "chatcmpl-c", outcome
             )
         )
 
-    assert calls == ["llama-3.3-70b-groq"]
+    assert calls == ["gpt-oss-120b-groq"]

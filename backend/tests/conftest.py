@@ -1,8 +1,12 @@
 """Shared test catalog for the routing tests.
 
-Mirrors migration 006's backfill (name, fallback_priority, routing_domains) so
+Mirrors migration 007's active set (name, fallback_priority, routing_domains) so
 proxy / router / embedding tests resolve domains and fallback order the same way
 production does — without a live DB. One source of truth for all three.
+
+Only the active models appear here: 007 retired 5 decommissioned models via
+is_active = false, and ModelCache.load() filters those out before building the
+chain or the domain map, so they can never influence a routing decision.
 """
 
 import pytest
@@ -10,17 +14,16 @@ import pytest
 from app.core.proxy import model_cache
 from app.db.models import Model
 
-# (name, fallback_priority, routing_domains) — must match 006_admin_and_routing_config._BACKFILL.
+# (name, fallback_priority, routing_domains) — must match 007_refresh_catalog._ACTIVE.
 CATALOG = [
-    ("llama-3.3-70b-groq", 0, ["coding", "general"]),
-    ("llama-4-scout-groq", 1, ["writing"]),
-    ("gpt-oss-120b-groq", 2, ["math"]),
-    ("qwen3-coder-ollama", 3, []),
-    ("nemotron-3-super-ollama", 4, ["analysis"]),
-    ("minimax-m3-ollama", 5, []),
-    ("glm-4.7-ollama", 6, []),
-    ("gpt-oss-20b-groq", 7, []),
-    ("llama-3.1-8b-groq", 8, ["simple"]),
+    ("gpt-oss-120b-groq", 0, ["coding", "math"]),
+    ("qwen3.6-27b-groq", 1, ["simple"]),
+    ("gpt-oss-20b-groq", 2, ["general"]),
+    ("nemotron-3-nano-ollama", 3, []),
+    ("nemotron-3-ultra-ollama", 4, ["analysis"]),
+    ("nemotron-3-super-ollama", 5, []),
+    ("minimax-m3-ollama", 6, []),
+    ("gemma4-31b-ollama", 7, ["writing"]),
 ]
 
 
