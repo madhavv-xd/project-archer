@@ -49,6 +49,67 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ── Type scale ──────────────────────────────────────────────────────────────
+   One scale for both registers (landing + product shell). Heading steps climb
+   ~1.5-1.7x so hierarchy reads from size alone; body steps sit closer together
+   because they're read, not scanned. Replaces the ad-hoc 10.5/13.5/18.5px
+   one-offs that accumulated across landing.css and the dashboard pages.
+
+   Display family (Bricolage) is reserved for `hero`/`display`/`title`; mono for
+   `tag`. See DESIGN.md §3 "The Mono-Means-Literal Rule". */
+@theme {
+  /* Display — Bricolage, tight leading, negative tracking (floor -0.04em). */
+  --text-hero: clamp(2.75rem, 7.4vw, 5.5rem);      /* 44 → 88 */
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.02em;
+  --text-hero--font-weight: 700;
+
+  --text-display: clamp(1.875rem, 4.4vw, 3.25rem); /* 30 → 52 */
+  --text-display--line-height: 1.06;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+
+  --text-title: 1.3125rem;                          /* 21 — card/beat headings */
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 700;
+
+  /* Body — Geist. Dark-mode leading is +0.05 over the light default, per
+     brand.md: light type on dark reads lighter and needs the extra room. */
+  --text-lead: clamp(1rem, 1.6vw, 1.15rem);         /* 16 → 18.4, hero sub */
+  --text-lead--line-height: 1.65;
+  --text-body: 1rem;                                /* 16 */
+  --text-body--line-height: 1.65;
+  --text-body-sm: 0.875rem;                         /* 14 */
+  --text-body-sm--line-height: 1.6;
+  --text-caption: 0.75rem;                          /* 12 */
+  --text-caption--line-height: 1.5;
+
+  /* Mono — literal things only: model names, routing tags, request ids. */
+  --text-tag: 0.75rem;                              /* 12 */
+  --text-tag--line-height: 1.4;
+  --text-tag--letter-spacing: 0.02em;
+
+  /* ── Spacing & measure ────────────────────────────────────────────────────
+     Section rhythm and container width as tokens, so pages stop inventing
+     per-page magic numbers. */
+  --container-page: 71.25rem;                       /* 1140 — main content */
+  /* Not named `prose`: --container-prose would shadow Tailwind's built-in
+     max-w-prose (65ch) for every future caller. */
+  --container-measure: 40rem;                       /* 640 — section intros */
+
+  --spacing-gutter: 1.5rem;                         /* 24 — page inline padding */
+  --spacing-section: clamp(4rem, 10vw, 8rem);       /* 64 → 128 — section block */
+  --spacing-stack: 1.75rem;                         /* 28 — between siblings */
+
+  /* Semantic z-index. Never arbitrary 999s. */
+  --z-sticky: 40;
+  --z-modal-backdrop: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+  --z-tooltip: 80;
+}
+
 /* Archer "Longbow at dusk" — dark forest-ink, brass-gold, fletching-vermilion.
    Mirrors the landing palette so the whole app is one brand. Applied in both
    :root and .dark so dark-mode component variants activate too. */

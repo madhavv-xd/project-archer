@@ -2,24 +2,28 @@
    dashboard's shadcn theme is never touched. Keyframes are prefixed lp-. */
 
 .lp {
-  --lp-ink: #0e1512;
-  --lp-ink-2: #131d18;
-  --lp-ink-3: #182419;
-  --lp-line: #28392f;
-  --lp-bone: #ece7d7;
-  --lp-moss: #8aa593;
-  --lp-moss-dim: #5d6f63;
-  --lp-gold: #e9b949;
-  --lp-gold-2: #f4d27a;
-  --lp-verm: #e2533b;
+  /* Aliases onto the global tokens in app/globals.css — the landing used to
+     redefine all nine colors as literal hex, so the palette had two sources of
+     truth and could drift. The --lp-* names stay so the rest of this file is
+     untouched; only their values now come from one place. */
+  --lp-ink: var(--background);
+  --lp-ink-2: var(--card);
+  --lp-ink-3: #182419; /* landing-only lift; no global equivalent (sits between --card and --accent) */
+  --lp-line: var(--border);
+  --lp-bone: var(--foreground);
+  --lp-moss: var(--muted-foreground);
+  --lp-moss-dim: var(--chart-5);
+  --lp-gold: var(--primary);
+  --lp-gold-2: var(--accent-foreground);
+  --lp-verm: var(--destructive);
 
   position: relative;
   min-height: 100vh;
   background: var(--lp-ink);
   color: var(--lp-bone);
   font-family: var(--font-sans), system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: var(--text-body);
+  line-height: 1.65;
   overflow-x: clip;
   /* faint range-floor grid + a warm glow up top behind the target */
   background-image:
@@ -52,9 +56,9 @@
 
 .lp-wrap {
   width: 100%;
-  max-width: 1140px;
+  max-width: var(--container-page);
   margin-inline: auto;
-  padding-inline: 24px;
+  padding-inline: var(--spacing-gutter);
 }
 
 .lp-display {
@@ -208,7 +212,7 @@
 }
 
 .lp-h1 {
-  font-size: clamp(44px, 7.4vw, 92px);
+  font-size: var(--text-hero);
   margin: 20px 0 0;
 }
 
@@ -234,7 +238,7 @@
 .lp-sub {
   margin: 26px 0 0;
   max-width: 30em;
-  font-size: clamp(16px, 1.6vw, 18.5px);
+  font-size: var(--text-lead);
   color: var(--lp-moss);
 }
 
@@ -409,16 +413,16 @@
 /* ---------- generic section ---------- */
 .lp-section {
   position: relative;
-  padding-block: clamp(64px, 10vw, 128px);
+  padding-block: var(--spacing-section);
 }
 
 .lp-section-head {
-  max-width: 40rem;
+  max-width: var(--container-measure);
   margin-bottom: 56px;
 }
 
 .lp-h2 {
-  font-size: clamp(30px, 4.4vw, 52px);
+  font-size: var(--text-display);
   margin: 16px 0 0;
 }
 
@@ -500,67 +504,69 @@
   color: var(--lp-gold-2);
 }
 
-/* ---------- models pool ---------- */
-.lp-models {
+/* ---------- the quiver (model pool) ----------
+   One hairline-separated panel rather than N identical bordered cards: the pool
+   is a list of facts a developer scans, and a card grid made eight near-identical
+   boxes compete for attention equally. Matches the .lp-features panel treatment
+   (1px gaps over a line-colored bed) so both sections read as one system. */
+.lp-quiver {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
-
-.lp-model {
-  position: relative;
-  padding: 22px 22px 26px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--lp-ink-2), var(--lp-ink));
-  border: 1px solid var(--lp-line);
-  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-  overflow: hidden;
-}
-
-.lp-model::after {
-  /* tiny target tick in the corner */
-  content: "";
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  gap: 1px;
   background: var(--lp-line);
-  box-shadow: 0 0 0 4px transparent;
-  transition: background 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--lp-line);
+  border-radius: 18px;
+  overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.lp-model:hover {
-  transform: translateY(-4px);
-  border-color: var(--lp-gold);
-  background: linear-gradient(180deg, var(--lp-ink-3), var(--lp-ink));
+.lp-quiver-row {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) 5.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 24px;
+  padding: 16px 24px;
+  background: var(--lp-ink);
+  transition: background 0.2s ease;
 }
 
-.lp-model:hover::after {
-  background: var(--lp-verm);
-  box-shadow: 0 0 0 4px rgba(226, 83, 59, 0.18);
+.lp-quiver-row:hover {
+  background: var(--lp-ink-2);
 }
 
-.lp-model-name {
-  font-family: var(--font-mono), monospace;
-  font-size: 14px;
+.lp-quiver-name {
+  font-size: var(--text-body-sm);
   color: var(--lp-bone);
-  margin: 0 0 10px;
+  transition: color 0.2s ease;
 }
 
-.lp-model-provider {
-  font-size: 12px;
+.lp-quiver-row:hover .lp-quiver-name {
+  color: var(--lp-gold);
+}
+
+.lp-quiver-provider {
+  font-size: var(--text-caption);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--lp-gold);
-  margin: 0 0 14px;
 }
 
-.lp-model-for {
-  font-size: 13.5px;
+.lp-quiver-for {
+  font-size: var(--text-body-sm);
   color: var(--lp-moss);
-  margin: 0;
+}
+
+/* Stack to name / provider / description once the three columns stop fitting. */
+@media (max-width: 720px) {
+  .lp-quiver-row {
+    grid-template-columns: 1fr auto;
+    gap: 6px 16px;
+    padding: 14px 18px;
+  }
+  .lp-quiver-for {
+    grid-column: 1 / -1;
+  }
 }
 
 .lp-models-note {

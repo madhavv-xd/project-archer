@@ -198,7 +198,6 @@ export function Landing({ isAuthed, modelCount }: { isAuthed: boolean; modelCoun
       <section className="lp-section" id="models">
         <div className="lp-wrap">
           <Reveal className="lp-section-head">
-            <span className="lp-eyebrow">The quiver</span>
             <h2 className="lp-h2 lp-display">{modelCount} models. One target.</h2>
             <p className="lp-section-sub">
               A curated pool sits behind your key. You never pick from it — Archer draws
@@ -206,13 +205,13 @@ export function Landing({ isAuthed, modelCount }: { isAuthed: boolean; modelCoun
             </p>
           </Reveal>
 
-          <Reveal className="lp-models" base="lp-reveal lp-models">
+          <Reveal as="ul" className="lp-quiver" base="lp-reveal lp-quiver">
             {MODELS.map((m) => (
-              <div className="lp-model" key={m.name}>
-                <p className="lp-model-provider">{m.provider}</p>
-                <p className="lp-model-name lp-mono">{m.name}</p>
-                <p className="lp-model-for">{m.best}</p>
-              </div>
+              <li className="lp-quiver-row" key={m.name}>
+                <span className="lp-quiver-name lp-mono">{m.name}</span>
+                <span className="lp-quiver-provider">{m.provider}</span>
+                <span className="lp-quiver-for">{m.best}</span>
+              </li>
             ))}
           </Reveal>
           <p className="lp-models-note">
@@ -227,7 +226,6 @@ export function Landing({ isAuthed, modelCount }: { isAuthed: boolean; modelCoun
       <section className="lp-section" id="api">
         <div className="lp-wrap">
           <Reveal className="lp-section-head">
-            <span className="lp-eyebrow">The aim</span>
             <h2 className="lp-h2 lp-display">Same code. New aim.</h2>
             <p className="lp-section-sub">
               If you've called OpenAI, you've already written Archer. Point the client at
@@ -281,7 +279,6 @@ export function Landing({ isAuthed, modelCount }: { isAuthed: boolean; modelCoun
       <section className="lp-section">
         <div className="lp-wrap">
           <Reveal className="lp-section-head">
-            <span className="lp-eyebrow">Why Archer</span>
             <h2 className="lp-h2 lp-display">Built to never miss.</h2>
           </Reveal>
           <Reveal className="lp-features" base="lp-reveal lp-features">
