@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, Copy, TriangleAlert, X } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -23,19 +23,25 @@ export function CreateKeyModal({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Only the most recent submit owns the error/loading state; a slower earlier
+  // request must not clear or overwrite what a later one produced.
+  const latestRequestRef = useRef(0);
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault();
+    const requestId = ++latestRequestRef.current;
     setError(null);
     setLoading(true);
     try {
       const key = await api.createKey(token, name.trim() || "Untitled");
+      if (requestId !== latestRequestRef.current) return;
       setCreated(key);
       onCreated();
     } catch (err) {
+      if (requestId !== latestRequestRef.current) return;
       setError(err instanceof Error ? err.message : "Failed to create key");
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current) setLoading(false);
     }
   }
 

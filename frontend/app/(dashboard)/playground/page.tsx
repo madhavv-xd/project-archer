@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type Msg = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   model?: string; // real routed model, resolved from /logs after streaming
@@ -59,9 +60,10 @@ export default function PlaygroundPage() {
   async function send() {
     if (!input.trim() || !apiKey.trim() || busy || !token) return;
     setError(null);
-    const userMsg: Msg = { role: "user", content: input.trim() };
+    const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: input.trim() };
     const history = [...messages, userMsg];
-    setMessages([...history, { role: "assistant", content: "" }]);
+    const assistantId = crypto.randomUUID();
+    setMessages([...history, { id: assistantId, role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
     const sentAt = Date.now();
@@ -69,7 +71,7 @@ export default function PlaygroundPage() {
     const setAssistant = (content: string, extra: Partial<Msg> = {}) =>
       setMessages((prev) => {
         const next = [...prev];
-        next[next.length - 1] = { role: "assistant", content, ...extra };
+        next[next.length - 1] = { id: assistantId, role: "assistant", content, ...extra };
         return next;
       });
 
@@ -206,9 +208,9 @@ export default function PlaygroundPage() {
               under each reply.
             </p>
           )}
-          {messages.map((m, i) => (
+          {messages.map((m) => (
             <div
-              key={i}
+              key={m.id}
               className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
             >
               <div

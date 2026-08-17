@@ -18,7 +18,7 @@ function ModelRow({
   token: string;
   onChanged: () => void;
 }) {
-  const [domains, setDomains] = useState(model.routing_domains.join(", "));
+  const [domains, setDomains] = useState(() => model.routing_domains.join(", "));
   const [priority, setPriority] = useState(String(model.fallback_priority));
   const [busy, setBusy] = useState(false);
 
@@ -28,19 +28,25 @@ function ModelRow({
 
   async function save() {
     setBusy(true);
-    await adminApi.updateModel(token, model.id, {
-      routing_domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
-      fallback_priority: Number(priority),
-    });
-    setBusy(false);
-    onChanged();
+    try {
+      await adminApi.updateModel(token, model.id, {
+        routing_domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
+        fallback_priority: Number(priority),
+      });
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function toggleActive() {
     setBusy(true);
-    await adminApi.updateModel(token, model.id, { is_active: !model.is_active });
-    setBusy(false);
-    onChanged();
+    try {
+      await adminApi.updateModel(token, model.id, { is_active: !model.is_active });
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
