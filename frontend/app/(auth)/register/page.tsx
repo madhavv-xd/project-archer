@@ -7,10 +7,9 @@ import Link from "next/link";
 
 import { register } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Brandmark } from "@/components/layout/Brandmark";
+import { AuthShell } from "@/components/auth/AuthShell";
 import { OAuthButtons } from "@/components/auth/OAuthButtons";
 
 export default function RegisterPage() {
@@ -51,83 +50,64 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 p-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(55% 45% at 50% 0%, rgba(233,185,73,0.10), transparent 70%)",
-        }}
-      />
-      <Link href="/" className="relative">
-        <Brandmark iconSize={22} className="text-2xl" />
-      </Link>
-      <Card className="relative w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="font-display text-lg font-bold">
-            Create your account
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            One key. Every model. Always on target.
+    <AuthShell
+      title="Create your account"
+      subtitle="One key. Every model. Always on target."
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="name">Name</Label>
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <p className="text-caption text-muted-foreground">At least 8 characters.</p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirm">Confirm password</Label>
+          <Input
+            id="confirm"
+            type="password"
+            required
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="text-body-sm text-destructive">
+            {error}
           </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="confirm">Confirm password</Label>
-              <Input
-                id="confirm"
-                type="password"
-                required
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" size="lg" disabled={loading} className="w-full">
-              {loading ? "Creating…" : "Register"}
-            </Button>
-          </form>
-          <div className="mt-4">
-            <OAuthButtons />
-          </div>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Login
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+        <Button type="submit" size="lg" disabled={loading} className="w-full">
+          {loading ? "Creating…" : "Register"}
+        </Button>
+      </form>
+      <div className="mt-stack">
+        <OAuthButtons />
+      </div>
+      <p className="mt-stack text-center text-body-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/login" className="text-primary hover:underline">
+          Login
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

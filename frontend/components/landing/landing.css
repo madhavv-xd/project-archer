@@ -259,16 +259,21 @@
 }
 
 .lp-hero-meta {
-  margin-top: 30px;
+  margin-top: var(--spacing-stack);
   display: flex;
-  gap: 26px;
+  gap: var(--spacing-gutter);
   flex-wrap: wrap;
   color: var(--lp-moss-dim);
-  font-size: 13px;
+  font-size: var(--text-body-sm);
 }
 
+/* The values are live data (model count comes from /health), so they carry the
+   mono face — same rule the dashboard tables follow. */
 .lp-hero-meta b {
-  color: var(--lp-bone);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: var(--text-tag);
+  letter-spacing: var(--text-tag--letter-spacing);
+  color: var(--lp-gold-2);
   font-weight: 600;
 }
 
@@ -429,7 +434,7 @@
 .lp-section-sub {
   margin: 18px 0 0;
   color: var(--lp-moss);
-  font-size: clamp(15px, 1.5vw, 18px);
+  font-size: var(--text-lead);
   max-width: 34em;
 }
 
@@ -718,7 +723,7 @@
 .lp-cta {
   position: relative;
   text-align: center;
-  padding-block: clamp(72px, 11vw, 150px);
+  padding-block: var(--spacing-section);
   overflow: hidden;
 }
 
@@ -734,17 +739,22 @@
 
 .lp-cta h2 {
   font-family: var(--font-display), sans-serif;
-  font-weight: 800;
-  font-size: clamp(34px, 5.5vw, 66px);
+  font-weight: 700;
+  font-size: var(--text-display);
   letter-spacing: -0.02em;
   margin: 0 auto;
   max-width: 14em;
 }
 
-.lp-cta p { color: var(--lp-moss); margin: 18px auto 0; max-width: 30em; }
+.lp-cta p {
+  color: var(--lp-moss);
+  font-size: var(--text-lead);
+  margin: 18px auto 0;
+  max-width: 30em;
+}
 
 .lp-cta-actions {
-  margin-top: 34px;
+  margin-top: var(--spacing-stack);
   display: flex;
   gap: 14px;
   justify-content: center;
