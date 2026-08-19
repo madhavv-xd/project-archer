@@ -36,15 +36,15 @@ export default function AdminUsersPage() {
       <Header title="Users" subtitle="Deactivate an abuser and their keys stop working immediately." />
       <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-muted-foreground">
+          <table className="w-full text-body-sm">
+            <thead className="border-b border-border text-left text-caption tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="px-3 py-2 font-medium">Email</th>
-                <th className="px-3 py-2 font-medium">Plan</th>
-                <th className="px-3 py-2 font-medium">Role</th>
-                <th className="px-3 py-2 font-medium">Requests</th>
-                <th className="px-3 py-2 font-medium">State</th>
-                <th className="px-3 py-2 font-medium">Actions</th>
+                <th className="px-3 py-2.5 font-medium">Email</th>
+                <th className="px-3 py-2.5 font-medium">Plan</th>
+                <th className="px-3 py-2.5 font-medium">Role</th>
+                <th className="px-3 py-2.5 font-medium">Requests</th>
+                <th className="px-3 py-2.5 font-medium">State</th>
+                <th className="px-3 py-2.5 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -61,14 +61,15 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-3 py-2">{u.request_count.toLocaleString()}</td>
                   <td className="px-3 py-2">
-                    <span className={u.is_active ? "text-primary" : "text-destructive"}>
+                    {/* Severity ladder (5.3): active is the quiet normal state. */}
+                    <span className={u.is_active ? "text-muted-foreground" : "text-destructive"}>
                       {u.is_active ? "active" : "deactivated"}
                     </span>
                   </td>
                   <td className="px-3 py-2">
                     <Button
                       size="sm"
-                      variant={u.is_active ? "ghost" : "default"}
+                      variant={u.is_active ? "destructive" : "default"}
                       onClick={() => toggle(u)}
                       disabled={busy === u.id || u.role === "admin"}
                     >

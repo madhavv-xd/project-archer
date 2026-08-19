@@ -160,3 +160,23 @@
     @apply font-sans;
   }
 }
+
+/* Playground streaming cursor — the one piece of ambient motion permitted in
+   the product shell (design.md motion budget). */
+.stream-cursor::after {
+  content: "▍";
+  color: var(--primary);
+  animation: stream-blink 1s steps(2, jump-none) infinite;
+}
+
+@keyframes stream-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stream-cursor::after {
+    animation: none;
+  }
+}

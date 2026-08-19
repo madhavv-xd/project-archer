@@ -11,6 +11,7 @@ import { Markdown } from "@/components/playground/Markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -166,15 +167,16 @@ export default function PlaygroundPage() {
     return (
       <>
         <Header title="Playground" subtitle="Watch a request route and stream, live." />
-        <main className="flex flex-1 items-center justify-center p-6">
-          <Card className="max-w-md text-center">
-            <CardContent className="p-8">
-              <KeyRound className="mx-auto size-8 text-primary" />
-              <h2 className="mt-4 font-display text-lg font-semibold">You need an API key</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                The playground sends real requests with your own key. Create one to get started.
-              </p>
-              <Link href="/api-keys" className="mt-4 inline-block">
+        <main className="flex flex-1 items-center justify-center p-gutter">
+          <Card className="max-w-md">
+            <CardContent className="flex flex-col items-center p-8">
+              <EmptyState
+                icon={KeyRound}
+                title="You need an API key"
+                hint="The playground sends real requests with your own key. Create one to get started."
+                className="py-0"
+              />
+              <Link href="/api-keys" className="mt-4">
                 <Button>Create an API key</Button>
               </Link>
             </CardContent>
@@ -187,7 +189,7 @@ export default function PlaygroundPage() {
   return (
     <>
       <Header title="Playground" subtitle="Watch a request route and stream, live." />
-      <main className="flex flex-1 flex-col overflow-hidden p-6">
+      <main className="flex flex-1 flex-col overflow-hidden p-gutter">
         <div className="mb-3">
           <Input
             type="password"
@@ -203,43 +205,65 @@ export default function PlaygroundPage() {
           className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-border bg-card p-4"
         >
           {messages.length === 0 && (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              Send a message and watch Archer route it — the real model that answered shows up
-              under each reply.
-            </p>
+            <EmptyState
+              icon={Send}
+              title="Send a message and watch Archer route it."
+              hint="The real model that answered shows up under each reply."
+            />
           )}
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
-            >
+          {messages.map((m) => {
+            // The last assistant bubble is "live" (gets the cursor) until the
+            // model reveal starts — the one piece of motion the product shell
+            // allows (design.md motion budget).
+            const streaming =
+              busy &&
+              m.id === messages[messages.length - 1]?.id &&
+              m.role === "assistant" &&
+              !m.resolving &&
+              !m.model;
+            return (
               <div
-                className={
-                  m.role === "user"
-                    ? "max-w-[80%] rounded-lg bg-primary/10 px-3 py-2 text-sm"
-                    : "max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm"
-                }
+                key={m.id}
+                className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
               >
-                {m.role === "user" ? (
-                  <p className="whitespace-pre-wrap">{m.content}</p>
-                ) : m.content ? (
-                  <Markdown>{m.content}</Markdown>
-                ) : (
-                  <p className="text-muted-foreground">…</p>
-                )}
-                {m.role === "assistant" && (m.resolving || m.model) && (
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {m.resolving && !m.model
-                      ? "confirming model…"
-                      : `answered by ${m.model}${m.fallback ? " (fallback)" : ""}`}
-                  </p>
-                )}
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[80%] rounded-lg bg-primary/10 px-3 py-2 text-body-sm"
+                      : "max-w-[85%] rounded-lg bg-muted px-3 py-2 text-body-sm"
+                  }
+                >
+                  {m.role === "user" ? (
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                  ) : m.content ? (
+                    <Markdown>{m.content}</Markdown>
+                  ) : !streaming ? (
+                    <p className="text-muted-foreground">…</p>
+                  ) : null}
+                  {streaming && <span className="stream-cursor" aria-hidden />}
+                  {m.role === "assistant" && (m.resolving || m.model) && (
+                    <p className="mt-1.5 text-caption text-muted-foreground">
+                      {m.resolving && !m.model ? (
+                        "confirming model…"
+                      ) : (
+                        <>
+                          answered by <span className="font-mono">{m.model}</span>
+                          {m.fallback ? " (fallback)" : ""}
+                        </>
+                      )}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-2 text-body-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <div className="mt-3 flex gap-2">
           <Input

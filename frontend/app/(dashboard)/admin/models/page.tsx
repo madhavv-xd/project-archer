@@ -53,8 +53,8 @@ function ModelRow({
   return (
     <tr className={`border-b border-border ${model.is_active ? "" : "opacity-50"}`}>
       <td className="px-3 py-2">
-        <div className="font-mono text-xs text-foreground">{model.name}</div>
-        <div className="text-xs text-muted-foreground">{model.provider}</div>
+        <div className="font-mono text-tag text-foreground">{model.name}</div>
+        <div className="text-caption text-muted-foreground">{model.provider}</div>
       </td>
       <td className="px-3 py-2">
         <Input
@@ -73,7 +73,9 @@ function ModelRow({
         />
       </td>
       <td className="px-3 py-2">
-        <span className={model.is_active ? "text-primary" : "text-muted-foreground"}>
+        {/* Severity ladder (5.3): quiet for the normal state, vermilion for the
+            one an admin scans for — a model out of rotation. */}
+        <span className={model.is_active ? "text-muted-foreground" : "text-destructive"}>
           {model.is_active ? "active" : "disabled"}
         </span>
       </td>
@@ -82,7 +84,12 @@ function ModelRow({
           <Button size="sm" onClick={save} disabled={busy || !dirty}>
             Save
           </Button>
-          <Button size="sm" variant="ghost" onClick={toggleActive} disabled={busy}>
+          <Button
+            size="sm"
+            variant={model.is_active ? "destructive" : "default"}
+            onClick={toggleActive}
+            disabled={busy}
+          >
             {model.is_active ? "Disable" : "Enable"}
           </Button>
         </div>
@@ -112,14 +119,14 @@ export default function AdminModelsPage() {
       />
       <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border text-left text-muted-foreground">
+          <table className="w-full text-body-sm">
+            <thead className="border-b border-border text-left text-caption tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="px-3 py-2 font-medium">Model</th>
-                <th className="px-3 py-2 font-medium">Routing domains</th>
-                <th className="px-3 py-2 font-medium">Priority</th>
-                <th className="px-3 py-2 font-medium">State</th>
-                <th className="px-3 py-2 font-medium">Actions</th>
+                <th className="px-3 py-2.5 font-medium">Model</th>
+                <th className="px-3 py-2.5 font-medium">Routing domains</th>
+                <th className="px-3 py-2.5 font-medium">Priority</th>
+                <th className="px-3 py-2.5 font-medium">State</th>
+                <th className="px-3 py-2.5 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -130,7 +137,7 @@ export default function AdminModelsPage() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 text-caption text-muted-foreground">
           Domains are comma-separated (the 6 buckets: coding, math, writing, simple, analysis,
           general). Lower priority = tried earlier in the fallback chain. Changes take effect on
           the next request.
