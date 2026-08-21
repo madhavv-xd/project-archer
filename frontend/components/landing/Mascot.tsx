@@ -22,24 +22,22 @@ export function Mascot({ className = "" }: { className?: string }) {
 
       <g className="lp-mascot-bob">
         {/* recurve bow + nocked arrow (behind the body, to the right) */}
-        <path
-          d="M160 60 Q210 124 160 188"
-          fill="none"
-          stroke="#0c120f"
-          strokeWidth="7"
-          strokeLinecap="round"
-        />
-        <path
-          className="lp-mascot-string"
-          d="M160 62 L160 186"
-          fill="none"
-          stroke="#ECE7D7"
-          strokeWidth="2"
-        />
+        <g className="lp-mascot-bow">
+          <path
+            d="M160 60 Q210 124 160 188"
+            fill="none"
+            stroke="#0c120f"
+            strokeWidth="7"
+            strokeLinecap="round"
+          />
+          <path d="M160 62 L160 186" fill="none" stroke="#ECE7D7" strokeWidth="2" />
+        </g>
+        {/* The shaft runs past the bow (x>168) so the draw-back on hover is
+            actually visible — it used to end at 160, fully behind the body. */}
         <g className="lp-mascot-arrow">
-          <line x1="92" y1="124" x2="160" y2="124" stroke="#0c120f" strokeWidth="4" strokeLinecap="round" />
+          <line x1="92" y1="124" x2="206" y2="124" stroke="#0c120f" strokeWidth="4" strokeLinecap="round" />
           <polygon points="92,124 104,118 104,130" fill="#E2533B" />
-          <polygon points="158,116 168,124 158,132" fill="#8AA593" />
+          <polygon points="204,117 216,124 204,131" fill="#ECE7D7" />
         </g>
 
         {/* fletching crest */}

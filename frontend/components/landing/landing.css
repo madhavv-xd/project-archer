@@ -108,9 +108,26 @@
 }
 
 .lp-btn--primary {
+  position: relative;
+  overflow: hidden;
   background: var(--lp-gold);
   color: #1a1205;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 10px 30px -12px rgba(233, 185, 73, 0.7);
+}
+
+/* light sweeps across the gold on hover */
+.lp-btn--primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.lp-btn--primary:hover::after {
+  transform: translateX(120%);
+  transition: transform 0.7s ease;
 }
 
 .lp-btn--primary:hover {
@@ -233,6 +250,12 @@
   background: linear-gradient(90deg, transparent, var(--lp-verm) 14%, var(--lp-verm));
   transform-origin: left;
   transform: scaleX(var(--lp-underline, 1));
+  /* draws itself in just after the h1 has risen */
+  animation: lp-underline 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.62s backwards;
+}
+
+@keyframes lp-underline {
+  from { transform: scaleX(0); }
 }
 
 .lp-sub {
@@ -356,7 +379,6 @@
 .lp-ring-draw {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  pathLength: 1;
   animation: lp-draw 1.1s ease forwards;
 }
 
@@ -685,9 +707,12 @@
 .lp-code-points span { color: var(--lp-moss); font-size: 14.5px; }
 
 /* ---------- features ---------- */
+/* Explicit 3 columns, not auto-fit: there are exactly 6 features, and auto-fit
+   resolved to 4 on a wide viewport — leaving 2 empty cells that showed the
+   line-colored grid bed as a lighter block. 3 and 2 both divide 6 evenly. */
 .lp-features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(248px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--lp-line);
   border: 1px solid var(--lp-line);
@@ -791,6 +816,46 @@
   transform: none;
 }
 
+/* Children cascade in after their container reveals. The quiver rows and
+   feature cards sit on a 1px-gap line-colored bed, so they fade only — moving
+   them would expose the bed through the gap. The beats are free-standing and
+   can rise. Delays are nth-child rather than a --i prop: no JSX churn, and the
+   two grids never exceed 8 items. */
+.lp-quiver-row,
+.lp-feature {
+  opacity: 0;
+  transition: opacity 0.55s ease;
+}
+
+.lp-beat {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.is-in .lp-quiver-row,
+.is-in .lp-feature,
+.is-in .lp-beat {
+  opacity: 1;
+  transform: none;
+}
+
+.is-in :is(.lp-quiver-row, .lp-feature, .lp-beat):nth-child(2) { transition-delay: 0.07s; }
+.is-in :is(.lp-quiver-row, .lp-feature, .lp-beat):nth-child(3) { transition-delay: 0.14s; }
+.is-in :is(.lp-quiver-row, .lp-feature):nth-child(4) { transition-delay: 0.21s; }
+.is-in :is(.lp-quiver-row, .lp-feature):nth-child(5) { transition-delay: 0.28s; }
+.is-in :is(.lp-quiver-row, .lp-feature):nth-child(6) { transition-delay: 0.35s; }
+.is-in .lp-quiver-row:nth-child(7) { transition-delay: 0.42s; }
+.is-in .lp-quiver-row:nth-child(8) { transition-delay: 0.49s; }
+
+.lp-feature-ico {
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.lp-feature:hover .lp-feature-ico {
+  transform: scale(1.12) rotate(-6deg);
+}
+
 /* mascot float (its own component styles live with the SVG) */
 .lp-mascot { display: block; width: 100%; height: auto; }
 
@@ -813,21 +878,32 @@
   transition: transform 0.3s cubic-bezier(0.3, 0.9, 0.3, 1);
 }
 
-.lp-mascot-wrap:hover .lp-mascot-arrow { transform: translateX(12px); }
-.lp-mascot-string {
-  transition: d 0.3s ease;
+/* Draws back, not forward — pulling the nock toward the body is the readable
+   half of a shot; pushing the arrow out just slid it under the bow. */
+.lp-mascot-wrap:hover .lp-mascot-arrow { transform: translateX(-16px); }
+
+.lp-mascot-wrap { cursor: pointer; }
+
+/* the bow flexes with the draw */
+.lp-mascot-wrap .lp-mascot-bow {
+  transform-origin: 160px 124px;
+  transition: transform 0.3s cubic-bezier(0.3, 0.9, 0.3, 1);
 }
+
+.lp-mascot-wrap:hover .lp-mascot-bow { transform: scaleX(1.1); }
 
 /* ---------- responsive ---------- */
 @media (max-width: 920px) {
   .lp-hero-grid { grid-template-columns: 1fr; }
   .lp-target-stage { max-width: 440px; margin-inline: auto; order: -1; }
   .lp-code-grid { grid-template-columns: 1fr; }
+  .lp-features { grid-template-columns: repeat(2, 1fr); }
   .lp-nav-links { display: none; }
 }
 
 @media (max-width: 640px) {
   .lp-shot-track { grid-template-columns: 1fr; gap: 36px; }
+  .lp-features { grid-template-columns: 1fr; }
   .lp-shot-track::before { display: none; }
   .lp-hero-mascot { width: 88px; left: 0; }
 }
@@ -842,6 +918,11 @@
   }
   .lp-rise { opacity: 1; transform: none; }
   .lp-reveal { opacity: 1; transform: none; }
+  .lp-quiver-row,
+  .lp-feature,
+  .lp-beat { opacity: 1; transform: none; }
+  .lp-btn--primary::after { display: none; }
+  .lp-h1 .lp-h1-em::after { transform: scaleX(1); }
   .lp-ring-draw { stroke-dashoffset: 0; }
   .lp-shot-track::before { --lp-traj: 1; }
 }
