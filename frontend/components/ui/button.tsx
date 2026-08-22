@@ -9,7 +9,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
+        /* Nocturne: primary action is an accent outline + tint, never a solid
+           accent fill (handoff README §Colour). */
+        default:
+          "border-(--accent-700) bg-primary/10 text-(--accent-200) hover:-translate-y-px hover:bg-primary/20 hover:shadow-[0_0_22px_-8px_var(--ring)]",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
