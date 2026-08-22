@@ -7,14 +7,38 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.security import generate_api_key, hash_api_key
 from app.db.models import ApiKey
+
+# Hidden key auto-provisioned per user for the playground (never shown/listed —
+# lets the playground call /v1 without the user pasting a real arch_sk_ key).
+PLAYGROUND_KEY_NAME = "__playground__"
 
 
 async def list_for_user(db: AsyncSession, user_id: uuid.UUID) -> list[ApiKey]:
     result = await db.execute(
-        select(ApiKey).where(ApiKey.user_id == user_id).order_by(ApiKey.created_at.desc())
+        select(ApiKey)
+        .where(ApiKey.user_id == user_id, ApiKey.name != PLAYGROUND_KEY_NAME)
+        .order_by(ApiKey.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def get_or_create_playground_key(db: AsyncSession, user_id: uuid.UUID) -> ApiKey:
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.user_id == user_id, ApiKey.name == PLAYGROUND_KEY_NAME)
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        return existing
+    full_key = generate_api_key()
+    return await create(
+        db,
+        user_id=user_id,
+        name=PLAYGROUND_KEY_NAME,
+        key_hash=hash_api_key(full_key),
+        key_prefix=full_key[:12],
+    )
 
 
 async def create(

@@ -8,7 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 
-from app.api.middleware.auth import enforce_limits
+from app.api.middleware.auth import enforce_limits, enforce_limits_playground
 from app.core.proxy import (
     AllModelsUnavailable,
     StreamOutcome,
@@ -16,7 +16,7 @@ from app.core.proxy import (
     model_cache,
     stream_with_fallback,
 )
-from app.core.router import route
+from app.core.router import RouteDecision, route
 from app.db.database import AsyncSessionLocal
 from app.db.models import ApiKey
 from app.db.repositories import requests as requests_repo
@@ -42,6 +42,17 @@ async def _log(**fields) -> None:
         logger.exception("failed to write request log")
 
 
+async def _decide(body: ChatCompletionRequest, query: str, allow_manual: bool) -> RouteDecision:
+    """Public /v1/chat/completions always auto-routes (body.model is ignored, per
+    the documented API contract). The playground opts into honoring an explicit,
+    valid catalog model name instead of routing."""
+    if allow_manual and body.model and body.model != "archer-auto":
+        model = model_cache.get(body.model)
+        if model is not None:
+            return RouteDecision(model.name, "manual_selection", "manual", None)
+    return await route(query)
+
+
 @router.post("/chat/completions", response_model=ChatCompletionResponse)
 async def chat_completions(
     request: Request,
@@ -49,10 +60,27 @@ async def chat_completions(
     api_key: ApiKey = Depends(enforce_limits),
 ):
     if body.stream:
-        return await _stream_completion(request, body, api_key)
+        return await _stream_completion(request, body, api_key, allow_manual=False)
+    return await _chat_completions_core(body, api_key, allow_manual=False)
 
+
+@router.post("/playground/chat/completions", response_model=ChatCompletionResponse)
+async def playground_chat_completions(
+    request: Request,
+    body: ChatCompletionRequest,
+    api_key: ApiKey = Depends(enforce_limits_playground),
+):
+    """JWT-authenticated mirror of /chat/completions for the dashboard playground
+    — same routing/fallback/logging, but no arch_sk_ key to paste, and body.model
+    may pick a real catalog model instead of auto-routing."""
+    if body.stream:
+        return await _stream_completion(request, body, api_key, allow_manual=True)
+    return await _chat_completions_core(body, api_key, allow_manual=True)
+
+
+async def _chat_completions_core(body: ChatCompletionRequest, api_key: ApiKey, allow_manual: bool) -> ChatCompletionResponse:
     query = _last_user_message(body)
-    decision = await route(query)
+    decision = await _decide(body, query, allow_manual)
     selected_name, routing_reason = decision.model_name, decision.routing_reason
     selected = model_cache.get(selected_name)
 
@@ -102,10 +130,10 @@ async def chat_completions(
 
 
 async def _stream_completion(
-    request: Request, body: ChatCompletionRequest, api_key: ApiKey
+    request: Request, body: ChatCompletionRequest, api_key: ApiKey, allow_manual: bool = False
 ) -> StreamingResponse:
     query = _last_user_message(body)
-    decision = await route(query)
+    decision = await _decide(body, query, allow_manual)
     selected_name, routing_reason = decision.model_name, decision.routing_reason
     selected = model_cache.get(selected_name)
     archer_id = f"chatcmpl-{uuid.uuid4()}"

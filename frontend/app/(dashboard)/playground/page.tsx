@@ -2,18 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
-import { KeyRound, Send } from "lucide-react";
+import { Send } from "lucide-react";
 
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { Markdown } from "@/components/playground/Markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { Model } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+// Typing-speed reveal for the synthetic streaming effect (see `send` below) —
+// independent of how fast the upstream provider actually responds.
+const REVEAL_CHARS_PER_SEC = 55;
 
 type Msg = {
   id: string;
@@ -41,8 +44,8 @@ async function resolveModel(token: string, sentAt: number) {
 export default function PlaygroundPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
-  const [hasKeys, setHasKeys] = useState<boolean | null>(null);
-  const [apiKey, setApiKey] = useState("");
+  const [models, setModels] = useState<Model[]>([]);
+  const [selectedModel, setSelectedModel] = useState("archer-auto");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -51,7 +54,7 @@ export default function PlaygroundPage() {
 
   useEffect(() => {
     if (!token) return;
-    api.listKeys(token).then((keys) => setHasKeys(keys.length > 0));
+    api.models(token).then((list) => setModels(list.filter((m) => m.is_active)));
   }, [token]);
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function PlaygroundPage() {
   }, [messages]);
 
   async function send() {
-    if (!input.trim() || !apiKey.trim() || busy || !token) return;
+    if (!input.trim() || busy || !token) return;
     setError(null);
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: input.trim() };
     const history = [...messages, userMsg];
@@ -78,30 +81,34 @@ export default function PlaygroundPage() {
 
     // A fast upstream (Groq) is delivered by fetch as one coalesced chunk, so
     // reacting per-token would batch into a single paint. Decouple the reveal:
-    // the reader just fills `full`; this loop paints a slice of it per frame,
-    // draining any backlog so the reply always appears token-by-token.
+    // the reader just fills `full`; this loop paints it at a constant typing
+    // pace (REVEAL_CHARS_PER_SEC) regardless of how fast the provider replied.
     let full = "";
     let shown = 0;
     let streaming = true;
+    let lastTick = performance.now();
     const pacer = (async () => {
       while (streaming || shown < full.length) {
+        const now = performance.now();
+        const dt = (now - lastTick) / 1000;
+        lastTick = now;
         if (shown < full.length) {
-          shown += Math.max(2, Math.ceil((full.length - shown) / 10));
-          setAssistant(full.slice(0, shown));
+          shown = Math.min(full.length, shown + REVEAL_CHARS_PER_SEC * dt);
+          setAssistant(full.slice(0, Math.floor(shown)));
         }
         await new Promise((r) => requestAnimationFrame(r));
       }
     })();
 
     try {
-      const res = await fetch(`${API_URL}/v1/chat/completions`, {
+      const res = await fetch(`${API_URL}/v1/playground/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey.trim()}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          model: "archer-auto",
+          model: selectedModel,
           messages: history.map((m) => ({ role: m.role, content: m.content })),
           stream: true,
         }),
@@ -163,41 +170,28 @@ export default function PlaygroundPage() {
     }
   }
 
-  if (hasKeys === false) {
-    return (
-      <>
-        <Header title="Playground" subtitle="Watch a request route and stream, live." />
-        <main className="flex flex-1 items-center justify-center p-gutter">
-          <Card className="max-w-md">
-            <CardContent className="flex flex-col items-center p-8">
-              <EmptyState
-                icon={KeyRound}
-                title="You need an API key"
-                hint="The playground sends real requests with your own key. Create one to get started."
-                className="py-0"
-              />
-              <Link href="/api-keys" className="mt-4">
-                <Button>Create an API key</Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </main>
-      </>
-    );
-  }
-
   return (
     <>
       <Header title="Playground" subtitle="Watch a request route and stream, live." />
       <main className="flex flex-1 flex-col overflow-hidden p-gutter">
-        <div className="mb-3">
-          <Input
-            type="password"
-            placeholder="Paste an arch_sk_ key (shown once at creation, not retrievable here)"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            className="font-mono"
-          />
+        <div className="mb-3 flex items-center gap-2">
+          <label htmlFor="model-select" className="text-body-sm text-muted-foreground">
+            Model
+          </label>
+          <select
+            id="model-select"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={busy}
+            className="h-9 rounded-lg border border-border bg-card px-2 text-body-sm"
+          >
+            <option value="archer-auto">Archer (auto-route)</option>
+            {models.map((m) => (
+              <option key={m.id} value={m.name}>
+                {m.display_name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div
@@ -278,7 +272,7 @@ export default function PlaygroundPage() {
             }}
             disabled={busy}
           />
-          <Button onClick={send} disabled={busy || !input.trim() || !apiKey.trim()}>
+          <Button onClick={send} disabled={busy || !input.trim()}>
             <Send className="size-4" />
             Send
           </Button>

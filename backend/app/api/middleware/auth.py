@@ -89,12 +89,8 @@ async def get_api_key(
     return api_key
 
 
-async def enforce_limits(
-    request: Request,
-    response: Response,
-    api_key: ApiKey = Depends(get_api_key),
-) -> ApiKey:
-    """Rate-limit + quota gate for /v1/* — a drop-in replacement for get_api_key.
+async def _check_limits(request: Request, response: Response, api_key: ApiKey) -> ApiKey:
+    """Shared by enforce_limits and enforce_limits_playground.
 
     No Redis client (REDIS_URL unset) = Phase 1 behavior: no checks, no headers.
     Header values are stashed on request.state for routes that return a Response
@@ -137,3 +133,27 @@ async def enforce_limits(
             headers=headers,
         )
     return api_key
+
+
+async def enforce_limits(
+    request: Request,
+    response: Response,
+    api_key: ApiKey = Depends(get_api_key),
+) -> ApiKey:
+    """Rate-limit + quota gate for /v1/* — a drop-in replacement for get_api_key."""
+    return await _check_limits(request, response, api_key)
+
+
+async def enforce_limits_playground(
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ApiKey:
+    """JWT-authenticated equivalent of enforce_limits, for the playground: no
+    arch_sk_ key to paste, but the same per-user rate limit/quota checks (via a
+    hidden auto-provisioned key so request_logs still has an api_key_id to log
+    against)."""
+    api_key = await api_keys_repo.get_or_create_playground_key(db, user.id)
+    api_key.user = user  # already loaded; skip a redundant selectinload query
+    return await _check_limits(request, response, api_key)
