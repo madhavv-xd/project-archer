@@ -7,12 +7,14 @@ export function QuotaMeter({ used }: { used: number }) {
   const rawPct = (used / MONTHLY_QUOTA) * 100;
   const pct = Math.min(100, Math.round(rawPct));
   const state = rawPct >= 100 ? "over" : rawPct >= 80 ? "warn" : "normal";
+  // Nocturne: accent-gradient bar with a glow; the 80%/100% colour ladder
+  // brightens then flips to danger.
   const barColor =
     state === "over"
       ? "bg-destructive"
       : state === "warn"
-        ? "bg-primary"
-        : "bg-muted-foreground";
+        ? "bg-(--accent-300) shadow-[0_0_12px_-2px_var(--ring)]"
+        : "bg-linear-to-r from-(--accent-700) to-(--accent-400) shadow-[0_0_12px_-2px_var(--ring)]";
   const note =
     state === "over"
       ? "Quota reached — new requests are rejected until it resets on the 1st."

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Activity, CalendarClock, Coins, Target } from "lucide-react";
+import { Pulse, CalendarDots, Coins, Crosshair } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import type { DashboardStats, ModelDistribution, RequestLog, UsageDaily } from "@/types";
@@ -39,12 +39,12 @@ export default function DashboardPage() {
           <StatsCard
             label="Total Requests"
             value={stats?.total_requests ?? "—"}
-            icon={Activity}
+            icon={Pulse}
           />
           <StatsCard
             label="Requests Today"
             value={stats?.requests_today ?? "—"}
-            icon={CalendarClock}
+            icon={CalendarDots}
           />
           <StatsCard
             label="Total Tokens"
@@ -54,7 +54,7 @@ export default function DashboardPage() {
           <StatsCard
             label="Success Rate"
             value={stats ? `${stats.success_rate}%` : "—"}
-            icon={Target}
+            icon={Crosshair}
           />
         </div>
 

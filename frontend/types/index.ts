@@ -34,6 +34,7 @@ export interface RequestLog {
   completion_tokens: number | null;
   total_tokens: number | null;
   latency_ms: number;
+  time_to_first_token_ms: number | null;
   status: string;
   fallback_used: boolean;
   created_at: string;

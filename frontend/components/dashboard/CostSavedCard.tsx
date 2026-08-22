@@ -1,4 +1,4 @@
-import { PiggyBank } from "lucide-react";
+import { PiggyBank } from "@phosphor-icons/react";
 
 import { estimateCostSaved } from "@/lib/pricing";
 import { StatsCard } from "@/components/dashboard/StatsCard";

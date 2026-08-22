@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Activity, AlertTriangle, Repeat, Users } from "lucide-react";
+import { ArrowsClockwise, Pulse, UsersThree, Warning } from "@phosphor-icons/react";
 
 import { adminApi } from "@/lib/api";
 import type { ModelDistribution, PlatformOverview, UsageDaily } from "@/types";
@@ -31,10 +31,10 @@ export default function AdminOverviewPage() {
       <Header title="Platform Overview" subtitle="Every user's traffic, across the platform." />
       <PageBody>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatsCard label="Total Users" value={ov?.total_users ?? "—"} icon={Users} />
-          <StatsCard label="Total Requests" value={ov?.total_requests ?? "—"} icon={Activity} />
-          <StatsCard label="Error Rate" value={ov ? `${ov.error_rate}%` : "—"} icon={AlertTriangle} />
-          <StatsCard label="Fallback Rate" value={ov ? `${ov.fallback_rate}%` : "—"} icon={Repeat} />
+          <StatsCard label="Total Users" value={ov?.total_users ?? "—"} icon={UsersThree} />
+          <StatsCard label="Total Requests" value={ov?.total_requests ?? "—"} icon={Pulse} />
+          <StatsCard label="Error Rate" value={ov ? `${ov.error_rate}%` : "—"} icon={Warning} />
+          <StatsCard label="Fallback Rate" value={ov ? `${ov.fallback_rate}%` : "—"} icon={ArrowsClockwise} />
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <UsageChart data={usage} />

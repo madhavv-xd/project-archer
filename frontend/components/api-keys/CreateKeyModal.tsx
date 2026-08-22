@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Check, Copy, TriangleAlert, X } from "lucide-react";
+import { Check, Copy, Warning, X } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import type { CreatedApiKey } from "@/types";
@@ -53,14 +53,14 @@ export function CreateKeyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg">
+    <div className="fixed inset-0 z-(--z-modal-backdrop) flex items-center justify-center bg-[rgba(11,12,20,.72)] p-4 backdrop-blur-[3px]">
+      <div className="w-full max-w-[452px] rounded-2xl border border-(--accent-800) bg-card p-5 shadow-(--shadow-lg)">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">
             {created ? "API key created" : "Create API key"}
           </h2>
           <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="size-4" />
+            <X size={16} />
           </Button>
         </div>
 
@@ -88,8 +88,8 @@ export function CreateKeyModal({
           </form>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-body-sm text-primary">
-              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+            <div className="flex items-start gap-2 rounded-lg border border-(--accent-800) bg-primary/10 p-3 text-body-sm text-(--accent-200)">
+              <Warning weight="fill" className="mt-0.5 size-4 shrink-0" />
               <span>
                 Copy this key now. For security, it will never be shown again.
               </span>
@@ -99,7 +99,7 @@ export function CreateKeyModal({
                 {created.key}
               </code>
               <Button variant="outline" size="sm" onClick={copy}>
-                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                {copied ? <Check size={14} /> : <Copy size={14} />}
                 {copied ? "Copied" : "Copy"}
               </Button>
             </div>

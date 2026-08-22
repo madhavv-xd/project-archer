@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
+import { Key, Plus, Trash } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import type { ApiKey } from "@/types";
@@ -45,10 +45,17 @@ export function ApiKeyList() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-body-sm text-muted-foreground">
+          Keys are stored as{" "}
+          <code className="font-mono text-caption text-(--accent-300)">
+            SHA-256(key + salt)
+          </code>{" "}
+          — the full key is shown once, at creation.
+        </p>
         <Button onClick={() => setModalOpen(true)} disabled={!token}>
-          <Plus className="size-4" />
-          Create New Key
+          <Plus size={16} />
+          Create new key
         </Button>
       </div>
 
@@ -60,7 +67,7 @@ export function ApiKeyList() {
             <EmptyState
               title="No API keys yet."
               hint="Create one to start calling the API. The full key is shown once, at creation."
-              icon={KeyRound}
+              icon={Key}
             />
           ) : (
             <Table>
@@ -98,10 +105,11 @@ export function ApiKeyList() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="hover:bg-(--danger-tint) hover:text-(--danger)"
                         onClick={() => remove(k.id)}
                         aria-label="Delete key"
                       >
-                        <Trash2 className="size-4" />
+                        <Trash size={16} />
                       </Button>
                     </TableCell>
                   </TableRow>

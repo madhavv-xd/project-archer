@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Send } from "lucide-react";
+import { PaperPlaneRight } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { Markdown } from "@/components/playground/Markdown";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { Model } from "@/types";
 
@@ -25,16 +24,25 @@ type Msg = {
   model?: string; // real routed model, resolved from /logs after streaming
   fallback?: boolean;
   resolving?: boolean;
+  routingReason?: string;
+  ttftMs?: number | null;
+  totalTokens?: number | null;
 };
 
-// Read the served model + fallback back from the just-written log row. The log
+// Read the served model + metadata back from the just-written log row. The log
 // write is fire-and-forget, so retry once if the newest row predates our send.
 async function resolveModel(token: string, sentAt: number) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { items } = await api.logs(token, 1, 1);
     const row = items[0];
     if (row && new Date(row.created_at).getTime() >= sentAt - 2000) {
-      return { model: row.model ?? "unknown", fallback: row.fallback_used };
+      return {
+        model: row.model ?? "unknown",
+        fallback: row.fallback_used,
+        routingReason: row.routing_reason,
+        ttftMs: row.time_to_first_token_ms,
+        totalTokens: row.total_tokens,
+      };
     }
     await new Promise((r) => setTimeout(r, 400));
   }
@@ -159,7 +167,7 @@ export default function PlaygroundPage() {
       // Reveal the real routed model once the log row lands.
       setAssistant(full, { resolving: true });
       const resolved = await resolveModel(token, sentAt);
-      setAssistant(full, { model: resolved?.model, fallback: resolved?.fallback });
+      setAssistant(full, resolved ?? { model: undefined });
     } catch (e) {
       streaming = false;
       await pacer; // stop it writing before we remove the bubble
@@ -174,8 +182,11 @@ export default function PlaygroundPage() {
     <>
       <Header title="Playground" subtitle="Watch a request route and stream, live." />
       <main className="flex flex-1 flex-col overflow-hidden p-gutter">
-        <div className="mb-3 flex items-center gap-2">
-          <label htmlFor="model-select" className="text-body-sm text-muted-foreground">
+        <div className="mb-3 flex items-center gap-3">
+          <label
+            htmlFor="model-select"
+            className="font-mono text-label uppercase text-(--neutral-600)"
+          >
             Model
           </label>
           <select
@@ -183,15 +194,18 @@ export default function PlaygroundPage() {
             value={selectedModel}
             onChange={(e) => setSelectedModel(e.target.value)}
             disabled={busy}
-            className="h-9 rounded-lg border border-border bg-card px-2 text-body-sm"
+            className="h-8 rounded-full border border-(--accent-800) bg-primary/10 px-3 font-mono text-caption text-(--accent-300) outline-none focus-visible:border-ring"
           >
-            <option value="archer-auto">Archer (auto-route)</option>
+            <option value="archer-auto">archer-auto · let the router pick</option>
             {models.map((m) => (
               <option key={m.id} value={m.name}>
                 {m.display_name}
               </option>
             ))}
           </select>
+          <span className="ml-auto hidden font-mono text-caption text-(--neutral-600) sm:block">
+            POST /v1/chat/completions
+          </span>
         </div>
 
         <div
@@ -200,7 +214,7 @@ export default function PlaygroundPage() {
         >
           {messages.length === 0 && (
             <EmptyState
-              icon={Send}
+              icon={PaperPlaneRight}
               title="Send a message and watch Archer route it."
               hint="The real model that answered shows up under each reply."
             />
@@ -223,8 +237,8 @@ export default function PlaygroundPage() {
                 <div
                   className={
                     m.role === "user"
-                      ? "max-w-[80%] rounded-lg bg-primary/10 px-3 py-2 text-body-sm"
-                      : "max-w-[85%] rounded-lg bg-muted px-3 py-2 text-body-sm"
+                      ? "max-w-[76%] rounded-[14px] rounded-br-[4px] border border-(--accent-800) bg-primary/15 px-3 py-2 text-body-sm"
+                      : "max-w-[86%] rounded-[14px] rounded-bl-[4px] border border-(--neutral-800) bg-[rgba(22,24,38,.75)] px-3 py-2 text-body-sm"
                   }
                 >
                   {m.role === "user" ? (
@@ -236,16 +250,33 @@ export default function PlaygroundPage() {
                   ) : null}
                   {streaming && <span className="stream-cursor" aria-hidden />}
                   {m.role === "assistant" && (m.resolving || m.model) && (
-                    <p className="mt-1.5 text-caption text-muted-foreground">
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[rgba(233,233,237,.06)] pt-2 text-caption">
                       {m.resolving && !m.model ? (
-                        "confirming model…"
+                        <span className="text-muted-foreground">confirming model…</span>
                       ) : (
                         <>
-                          answered by <span className="font-mono">{m.model}</span>
-                          {m.fallback ? " (fallback)" : ""}
+                          <span className="rounded-[6px] bg-primary/10 px-1.5 py-0.5 text-(--accent-300)">
+                            answered by <span className="font-mono">{m.model}</span>
+                            {m.fallback ? " (fallback)" : ""}
+                          </span>
+                          {m.routingReason && (
+                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+                              {m.routingReason}
+                            </span>
+                          )}
+                          {m.ttftMs != null && (
+                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+                              ttft {m.ttftMs}ms
+                            </span>
+                          )}
+                          {m.totalTokens != null && (
+                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+                              {m.totalTokens} tok
+                            </span>
+                          )}
                         </>
                       )}
-                    </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -260,8 +291,9 @@ export default function PlaygroundPage() {
         )}
 
         <div className="mt-3 flex gap-2">
-          <Input
-            placeholder="Ask anything — code, math, a quick question…"
+          <textarea
+            rows={2}
+            placeholder="Ask anything — code, math, a quick question… (Shift+Enter for a new line)"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -271,9 +303,10 @@ export default function PlaygroundPage() {
               }
             }}
             disabled={busy}
+            className="w-full resize-none rounded-[10px] border border-(--neutral-800) bg-background px-3 py-2 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50"
           />
-          <Button onClick={send} disabled={busy || !input.trim()}>
-            <Send className="size-4" />
+          <Button onClick={send} disabled={busy || !input.trim()} className="self-end">
+            <PaperPlaneRight size={16} />
             Send
           </Button>
         </div>

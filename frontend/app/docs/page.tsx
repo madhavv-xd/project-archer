@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Target } from "lucide-react";
 
+import { Brandmark } from "@/components/layout/Brandmark";
 import { DocsCodeBlock } from "@/components/docs/DocsCodeBlock";
 
 export const metadata: Metadata = {
@@ -107,13 +107,12 @@ export default function DocsPage() {
     <div className="min-h-full">
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-gutter py-4">
-          <Link href="/" className="flex items-center gap-2 font-display font-bold">
-            <Target size={18} className="text-primary" strokeWidth={2.2} />
-            ARCHER
+          <Link href="/">
+            <Brandmark iconSize={16} className="text-sm" />
           </Link>
           <Link
             href="/register"
-            className="rounded-lg bg-primary px-3 py-1.5 text-body-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground"
+            className="rounded-[10px] border border-(--accent-700) bg-primary/10 px-3 py-1.5 text-body-sm font-medium text-(--accent-200) transition-all hover:-translate-y-px hover:bg-primary/20"
           >
             Get your API key
           </Link>
@@ -220,7 +219,7 @@ export default function DocsPage() {
           </p>
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-body-sm">
-              <thead className="border-b border-border text-left text-caption tracking-wide text-muted-foreground uppercase">
+              <thead className="border-b border-border bg-[rgba(35,37,50,.7)] text-left font-mono text-label uppercase text-(--neutral-600)">
                 <tr>
                   <th className="px-4 py-2.5 font-medium">Model</th>
                   <th className="px-4 py-2.5 font-medium">Speed</th>

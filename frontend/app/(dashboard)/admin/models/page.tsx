@@ -120,7 +120,7 @@ export default function AdminModelsPage() {
       <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-body-sm">
-            <thead className="border-b border-border text-left text-caption tracking-wide text-muted-foreground uppercase">
+            <thead className="border-b border-border bg-[rgba(35,37,50,.7)] text-left font-mono text-label uppercase text-(--neutral-600)">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Model</th>
                 <th className="px-3 py-2.5 font-medium">Routing domains</th>

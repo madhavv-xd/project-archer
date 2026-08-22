@@ -4,12 +4,13 @@ import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recha
 
 import type { ModelDistribution } from "@/types";
 
+// Nocturne donut slices — accent ramp, no red (README §Dashboard.4).
 const COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
+  "var(--accent-700)",
   "var(--chart-4)",
   "var(--chart-5)",
-  "var(--chart-3)",
 ];
 
 export default function ModelDistributionChartInner({

@@ -16,7 +16,7 @@ export function DocsCodeBlock({ code, lang }: { code: string; lang?: string }) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-border bg-card">
+    <div className="relative overflow-hidden rounded-lg border border-border bg-(--code-panel)">
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <span className="font-mono text-tag text-muted-foreground">{lang ?? "shell"}</span>
         <button

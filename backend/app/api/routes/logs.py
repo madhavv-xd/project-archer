@@ -24,6 +24,7 @@ def _to_response(log: RequestLog) -> RequestLogResponse:
         completion_tokens=log.completion_tokens,
         total_tokens=log.total_tokens,
         latency_ms=log.latency_ms,
+        time_to_first_token_ms=log.time_to_first_token_ms,
         status=log.status,
         fallback_used=log.fallback_used,
         created_at=log.created_at,

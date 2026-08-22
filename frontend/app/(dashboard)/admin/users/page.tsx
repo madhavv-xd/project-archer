@@ -37,7 +37,7 @@ export default function AdminUsersPage() {
       <PageBody>
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-body-sm">
-            <thead className="border-b border-border text-left text-caption tracking-wide text-muted-foreground uppercase">
+            <thead className="border-b border-border bg-[rgba(35,37,50,.7)] text-left font-mono text-label uppercase text-(--neutral-600)">
               <tr>
                 <th className="px-3 py-2.5 font-medium">Email</th>
                 <th className="px-3 py-2.5 font-medium">Plan</th>
@@ -54,12 +54,12 @@ export default function AdminUsersPage() {
                   <td className="px-3 py-2">{u.plan}</td>
                   <td className="px-3 py-2">
                     {u.role === "admin" ? (
-                      <span className="text-primary">admin</span>
+                      <span className="text-(--accent-300)">admin</span>
                     ) : (
-                      "user"
+                      <span className="text-muted-foreground">user</span>
                     )}
                   </td>
-                  <td className="px-3 py-2">{u.request_count.toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono">{u.request_count.toLocaleString()}</td>
                   <td className="px-3 py-2">
                     {/* Severity ladder (5.3): active is the quiet normal state. */}
                     <span className={u.is_active ? "text-muted-foreground" : "text-destructive"}>

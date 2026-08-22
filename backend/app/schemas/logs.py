@@ -14,6 +14,7 @@ class RequestLogResponse(BaseModel):
     completion_tokens: int | None
     total_tokens: int | None
     latency_ms: int
+    time_to_first_token_ms: int | None = None
     status: str
     fallback_used: bool
     created_at: datetime

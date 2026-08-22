@@ -1,5 +1,3 @@
-import type { LucideIcon } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 
 /** One empty state for the whole product shell.
@@ -14,7 +12,7 @@ export function EmptyState({
 }: {
   title: string;
   hint?: string;
-  icon?: LucideIcon;
+  icon?: React.ElementType;
   className?: string;
 }) {
   return (
@@ -25,11 +23,7 @@ export function EmptyState({
       )}
     >
       {Icon && (
-        <Icon
-          className="size-6 text-muted-foreground/60"
-          strokeWidth={1.6}
-          aria-hidden="true"
-        />
+        <Icon className="size-6 text-muted-foreground/60" aria-hidden="true" />
       )}
       <p className="text-body-sm text-muted-foreground">{title}</p>
       {hint && (

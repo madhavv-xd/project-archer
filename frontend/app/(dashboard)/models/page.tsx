@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Boxes } from "lucide-react";
+import { Cube } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import type { Model } from "@/types";
@@ -31,7 +31,7 @@ export default function ModelsPage() {
           <EmptyState
             title="No models to show."
             hint="The catalog loads from the backend — if this stays empty, check that the API is reachable."
-            icon={Boxes}
+            icon={Cube}
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

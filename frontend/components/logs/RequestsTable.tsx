@@ -51,16 +51,21 @@ export function RequestsTable({
       <TableBody>
         {logs.map((log) => (
           <TableRow key={log.id}>
-            <TableCell className="whitespace-nowrap text-muted-foreground">
+            <TableCell className="whitespace-nowrap font-mono text-caption text-muted-foreground">
               {new Date(log.created_at).toLocaleString()}
             </TableCell>
             <TableCell className="font-mono text-body-sm">{log.model ?? "—"}</TableCell>
             <TableCell>
-              <Badge variant="outline" className="font-mono">{log.routing_reason}</Badge>
+              <Badge
+                variant="outline"
+                className="rounded-[6px] font-mono text-(--accent-300)"
+              >
+                {log.routing_reason}
+              </Badge>
             </TableCell>
-            <TableCell>{log.prompt_tokens ?? "—"}</TableCell>
-            <TableCell>{log.completion_tokens ?? "—"}</TableCell>
-            <TableCell className="whitespace-nowrap">{log.latency_ms} ms</TableCell>
+            <TableCell className="font-mono text-body-sm">{log.prompt_tokens ?? "—"}</TableCell>
+            <TableCell className="font-mono text-body-sm">{log.completion_tokens ?? "—"}</TableCell>
+            <TableCell className="whitespace-nowrap font-mono text-body-sm">{log.latency_ms} ms</TableCell>
             <TableCell>
               <StatusBadge status={log.status} />
             </TableCell>

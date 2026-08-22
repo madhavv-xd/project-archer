@@ -214,8 +214,12 @@
 /* Playground streaming cursor — the one piece of ambient motion permitted in
    the product shell (design.md motion budget). */
 .stream-cursor::after {
-  content: "▍";
-  color: var(--primary);
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  vertical-align: text-bottom;
+  background: var(--primary);
   animation: stream-blink 1s steps(2, jump-none) infinite;
 }
 

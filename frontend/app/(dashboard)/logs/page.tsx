@@ -46,8 +46,8 @@ export default function LogsPage() {
             >
               Previous
             </Button>
-            <span>
-              Page {page} / {totalPages}
+            <span className="font-mono text-caption">
+              page {page} / {totalPages}
             </span>
             <Button
               variant="outline"
