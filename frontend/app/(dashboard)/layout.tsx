@@ -8,7 +8,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
+      <div className="blueprint-grid flex flex-1 flex-col overflow-hidden">{children}</div>
     </div>
   );
 }

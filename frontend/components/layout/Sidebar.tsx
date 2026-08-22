@@ -4,34 +4,44 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
-  KeyRound,
-  LayoutDashboard,
-  LogOut,
-  ScrollText,
-  Boxes,
-  MessagesSquare,
-  ShieldCheck,
+  BookOpenText,
+  ChatsCircle,
+  Cube,
   Gauge,
-  Users,
-} from "lucide-react";
+  Key,
+  Scroll,
+  SignOut,
+  SlidersHorizontal,
+  SquaresFour,
+  UsersThree,
+  type Icon,
+} from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Brandmark } from "@/components/layout/Brandmark";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/playground", label: "Playground", icon: MessagesSquare },
-  { href: "/api-keys", label: "API Keys", icon: KeyRound },
-  { href: "/models", label: "Models", icon: Boxes },
-  { href: "/logs", label: "Logs", icon: ScrollText },
+  { href: "/dashboard", label: "Dashboard", icon: SquaresFour },
+  { href: "/playground", label: "Playground", icon: ChatsCircle },
+  { href: "/api-keys", label: "API Keys", icon: Key },
+  { href: "/models", label: "Models", icon: Cube },
+  { href: "/logs", label: "Logs", icon: Scroll },
 ];
 
 const ADMIN_NAV = [
   { href: "/admin/overview", label: "Overview", icon: Gauge },
-  { href: "/admin/models", label: "Manage Models", icon: ShieldCheck },
-  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/models", label: "Manage Models", icon: SlidersHorizontal },
+  { href: "/admin/users", label: "Users", icon: UsersThree },
 ];
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-4 px-3 pb-1 font-mono text-[10px] uppercase tracking-[.16em] text-(--neutral-600)">
+      {children}
+    </div>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -40,11 +50,11 @@ export function Sidebar() {
   const renderLink = ({
     href,
     label,
-    icon: Icon,
+    icon: IconComp,
   }: {
     href: string;
     label: string;
-    icon: typeof LayoutDashboard;
+    icon: Icon;
   }) => {
     const active = pathname === href || pathname.startsWith(`${href}/`);
     return (
@@ -52,46 +62,49 @@ export function Sidebar() {
         key={href}
         href={href}
         className={cn(
-          "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+          "relative flex items-center gap-2.5 rounded-[10px] border border-transparent px-3 py-2 text-body-sm font-medium transition-colors",
           active
-            ? "bg-primary/10 text-primary before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            ? "border-(--accent-800) bg-primary/15 text-(--accent-200) after:absolute after:right-2.5 after:top-1/2 after:size-[5px] after:-translate-y-1/2 after:rounded-full after:bg-primary after:shadow-[0_0_8px_1px_var(--ring)]"
+            : "text-(--neutral-500) hover:bg-muted hover:text-foreground",
         )}
       >
-        <Icon className="size-4" />
+        <IconComp size={16} />
         {label}
       </Link>
     );
   };
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
-      <Link href="/" className="flex h-16 items-center px-5">
-        <Brandmark iconSize={20} className="text-lg" />
+    <aside className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <Link href="/" className="flex h-[58px] items-center border-b border-sidebar-border px-4">
+        <Brandmark iconSize={18} className="text-sm" />
       </Link>
-      <nav className="flex flex-1 flex-col gap-1 px-3 pt-2">
+      <nav className="flex flex-1 flex-col gap-1 px-3 pt-3">
         {NAV.map(renderLink)}
         {session?.user?.role === "admin" && (
           <>
-            <div className="mt-4 px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Admin
-            </div>
+            <SectionLabel>Admin</SectionLabel>
             {ADMIN_NAV.map(renderLink)}
           </>
         )}
+        <SectionLabel>Public</SectionLabel>
+        {renderLink({ href: "/docs", label: "Docs", icon: BookOpenText })}
       </nav>
-      <div className="border-t border-border p-3">
-        <div className="mb-2 truncate px-2 text-xs text-muted-foreground">
-          {session?.user?.email}
+      <div className="border-t border-sidebar-border p-3">
+        <div className="mb-2 rounded-[10px] border border-border bg-card/60 px-3 py-2">
+          <div className="truncate text-caption text-foreground">{session?.user?.email}</div>
+          <div className="font-mono text-[10px] uppercase tracking-[.12em] text-(--neutral-600)">
+            free plan
+          </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start"
+          className="w-full justify-start text-(--neutral-500)"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
-          <LogOut className="size-4" />
-          Logout
+          <SignOut size={16} />
+          Log out
         </Button>
       </div>
     </aside>

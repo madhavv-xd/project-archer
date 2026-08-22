@@ -202,6 +202,15 @@
   }
 }
 
+/* Nocturne blueprint grid — technical layer behind the app main pane (.04) and
+   the landing hero (.055, masked). background-size 34px per the handoff spec. */
+.blueprint-grid {
+  background-image:
+    linear-gradient(to right, rgba(145, 132, 217, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(145, 132, 217, 0.04) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
 /* Playground streaming cursor — the one piece of ambient motion permitted in
    the product shell (design.md motion budget). */
 .stream-cursor::after {
