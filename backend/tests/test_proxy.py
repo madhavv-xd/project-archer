@@ -27,12 +27,14 @@ OK = {"choices": [{"message": {"role": "assistant", "content": "ok"}, "finish_re
 class FakeProvider:
     """Records each call; raises or returns based on the model_id behavior map."""
 
-    def __init__(self, behavior, calls):
+    def __init__(self, behavior, calls, payloads):
         self.behavior = behavior
         self.calls = calls
+        self.payloads = payloads
 
-    async def chat(self, model_id, messages, temperature, max_tokens):
+    async def chat(self, model_id, messages, temperature, max_tokens, extra=None):
         self.calls.append(model_id)
+        self.payloads.append(extra or {})
         outcome = self.behavior.get(model_id, OK)
         if isinstance(outcome, ProviderError):
             raise outcome
@@ -49,9 +51,12 @@ def messages():
     return [ChatMessage(role="user", content="hi")]
 
 
-def _patch(monkeypatch, behavior):
+def _patch(monkeypatch, behavior, payloads=None):
     calls: list[str] = []
-    monkeypatch.setattr(proxy, "get_provider", lambda _name: FakeProvider(behavior, calls))
+    payloads = [] if payloads is None else payloads
+    monkeypatch.setattr(
+        proxy, "get_provider", lambda _name: FakeProvider(behavior, calls, payloads)
+    )
     return calls
 
 
@@ -105,12 +110,14 @@ class FakeStreamProvider:
 
     DEFAULT = ([_content_line("hello"), _usage_line(10)], None)
 
-    def __init__(self, behavior, calls):
+    def __init__(self, behavior, calls, payloads):
         self.behavior = behavior
         self.calls = calls
+        self.payloads = payloads
 
-    async def stream(self, model_id, messages, temperature, max_tokens):
+    async def stream(self, model_id, messages, temperature, max_tokens, extra=None):
         self.calls.append(model_id)
+        self.payloads.append(extra or {})
         lines, err = self.behavior.get(model_id, self.DEFAULT)
         for line in lines:
             yield line
@@ -118,9 +125,12 @@ class FakeStreamProvider:
             raise err
 
 
-def _patch_stream(monkeypatch, behavior):
+def _patch_stream(monkeypatch, behavior, payloads=None):
     calls: list[str] = []
-    monkeypatch.setattr(proxy, "get_provider", lambda _name: FakeStreamProvider(behavior, calls))
+    payloads = [] if payloads is None else payloads
+    monkeypatch.setattr(
+        proxy, "get_provider", lambda _name: FakeStreamProvider(behavior, calls, payloads)
+    )
     return calls
 
 
@@ -201,3 +211,39 @@ async def test_stream_client_error_stops_chain(monkeypatch, messages):
         )
 
     assert calls == ["gpt-oss-120b-groq"]
+
+
+async def test_reasoning_params_rebuilt_for_the_model_that_actually_answers(
+    monkeypatch, messages
+):
+    """The chain crosses reasoning dialects: gpt-oss-120b takes low/medium/high,
+    qwen3.6 takes none/default and 400s on the former. Reusing the first model's
+    payload for the second would fail the request outright (client_error is not
+    retried), so params are built per attempt, not once per request."""
+    payloads: list[dict] = []
+    calls = _patch(
+        monkeypatch,
+        {"gpt-oss-120b-groq": ProviderError("rate_limit", "429")},
+        payloads,
+    )
+
+    await call_with_fallback(
+        "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128,
+        reasoning=True, effort="high",
+    )
+
+    assert calls[:2] == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
+    assert payloads[0]["reasoning_effort"] == "high"        # effort mode
+    assert payloads[1]["reasoning_effort"] == "default"     # toggle mode
+
+
+async def test_reasoning_off_by_default_suppresses_output(monkeypatch, messages):
+    payloads: list[dict] = []
+    _patch(monkeypatch, {}, payloads)
+
+    result = await call_with_fallback(
+        "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128
+    )
+
+    assert payloads[0] == {"reasoning_format": "hidden", "reasoning_effort": "low"}
+    assert result.response.choices[0].message.reasoning is None

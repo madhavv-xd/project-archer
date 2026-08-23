@@ -2,7 +2,7 @@
 
 import json
 
-from app.core.normalizer import normalize_chunk, normalize_response
+from app.core.normalizer import StreamNormalizer, normalize_response, strip_think
 
 
 def test_normalizes_to_archer_auto():
@@ -34,6 +34,11 @@ def test_handles_missing_fields_with_defaults():
 
 
 ARCHER_ID = "chatcmpl-fixed-id"
+
+
+def normalize_chunk(raw: str, archer_id: str = ARCHER_ID, **kw) -> str | None:
+    """One-shot wrapper: most chunk tests don't care about cross-chunk state."""
+    return StreamNormalizer(archer_id, **kw).normalize(raw)
 
 
 def _payload(line: str) -> dict:

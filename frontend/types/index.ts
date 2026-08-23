@@ -24,6 +24,8 @@ export interface Model {
   context_window: number;
   speed_tier: string;
   best_for: string[];
+  /** "none" | "toggle" | "effort" | "effort_optional" — see models.reasoning_mode. */
+  reasoning_mode: string;
 }
 
 export interface RequestLog {

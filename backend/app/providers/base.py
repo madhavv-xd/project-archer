@@ -6,10 +6,47 @@ from abc import ABC, abstractmethod
 import httpx
 
 from app.config import settings
-from app.schemas.chat import ChatMessage
+from app.schemas.chat import ChatMessage, ReasoningEffort
 
 # Error categories that the proxy treats as "try the next model in the chain".
 RETRYABLE = {"rate_limit", "server_error", "timeout"}
+
+
+def reasoning_params(
+    reasoning_mode: str, provider: str, reasoning: bool, effort: ReasoningEffort
+) -> dict:
+    """Translate one Archer-level reasoning intent into this model's dialect.
+
+    The providers do not share an effort vocabulary — gpt-oss takes
+    low/medium/high and rejects `none`, qwen3.6 takes none/default and rejects
+    `low` — and a wrong value is HTTP 400, which the proxy categorizes
+    `client_error` and does NOT retry. So the vocabulary is read from the
+    model's `reasoning_mode` (a DB column) rather than guessed from its name.
+
+    Groq additionally honors `reasoning_format`, which is what actually fixes
+    qwen3.6: `hidden` drops its `<think>` block, `parsed` relocates it out of
+    `content` into a sibling `reasoning` field.
+    """
+    params: dict = {}
+
+    if reasoning_mode == "none":
+        # Model doesn't reason unless prodded — and gemma4 starts reasoning if
+        # sent an effort at all, so send nothing.
+        return params
+
+    if provider == "groq":
+        params["reasoning_format"] = "parsed" if reasoning else "hidden"
+
+    if reasoning_mode == "toggle":
+        params["reasoning_effort"] = "default" if reasoning else "none"
+    elif reasoning_mode == "effort":
+        # Cannot be switched off at the provider; "off" means minimum effort,
+        # with the output suppressed by reasoning_format above.
+        params["reasoning_effort"] = effort if reasoning else "low"
+    elif reasoning_mode == "effort_optional":
+        params["reasoning_effort"] = effort if reasoning else "none"
+
+    return params
 
 # One shared client for the whole process so connections (and TLS handshakes)
 # are pooled and reused across requests instead of rebuilt every call.
@@ -57,6 +94,7 @@ class BaseProvider(ABC):
         messages: list[ChatMessage],
         temperature: float,
         max_tokens: int,
+        extra: dict | None = None,
     ) -> dict:
         """Call the provider's /chat/completions and return the raw JSON body.
 
@@ -67,6 +105,7 @@ class BaseProvider(ABC):
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **(extra or {}),
         }
         try:
             resp = await _get_client().post(
@@ -98,6 +137,7 @@ class BaseProvider(ABC):
         messages: list[ChatMessage],
         temperature: float,
         max_tokens: int,
+        extra: dict | None = None,
     ):
         """Stream the provider's /chat/completions as raw SSE lines.
 
@@ -113,6 +153,7 @@ class BaseProvider(ABC):
             "max_tokens": max_tokens,
             "stream": True,
             "stream_options": {"include_usage": True},
+            **(extra or {}),
         }
         try:
             async with _get_client().stream(

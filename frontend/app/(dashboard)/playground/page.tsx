@@ -2,58 +2,57 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { PaperPlaneRight } from "@phosphor-icons/react";
+import { Brain, CaretRight, PaperPlaneRight } from "@phosphor-icons/react";
 
 import { api } from "@/lib/api";
 import { Header } from "@/components/layout/Header";
 import { Markdown } from "@/components/playground/Markdown";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Model } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-// Typing-speed reveal for the synthetic streaming effect (see `send` below) —
-// independent of how fast the upstream provider actually responds.
+// Floor for the typing-speed reveal (see `send`). The reveal is only cosmetic:
+// a fast provider hands fetch one coalesced chunk, so painting per-token would
+// batch into a single frame. But a *fixed* rate makes a long reply that already
+// arrived take len/rate seconds to finish — so the rate also scales with the
+// backlog, clearing whatever is outstanding within CATCHUP_SECONDS.
 const REVEAL_CHARS_PER_SEC = 55;
+const CATCHUP_SECONDS = 1.5;
+
+type Effort = "low" | "medium" | "high";
+
+type Meta = {
+  model: string | null;
+  routing_reason: string | null;
+  fallback_used: boolean;
+  time_to_first_token_ms: number | null;
+  total_tokens: number | null;
+};
 
 type Msg = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  model?: string; // real routed model, resolved from /logs after streaming
-  fallback?: boolean;
-  resolving?: boolean;
-  routingReason?: string;
-  ttftMs?: number | null;
-  totalTokens?: number | null;
+  reasoning?: string;
+  meta?: Meta;
 };
-
-// Read the served model + metadata back from the just-written log row. The log
-// write is fire-and-forget, so retry once if the newest row predates our send.
-async function resolveModel(token: string, sentAt: number) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { items } = await api.logs(token, 1, 1);
-    const row = items[0];
-    if (row && new Date(row.created_at).getTime() >= sentAt - 2000) {
-      return {
-        model: row.model ?? "unknown",
-        fallback: row.fallback_used,
-        routingReason: row.routing_reason,
-        ttftMs: row.time_to_first_token_ms,
-        totalTokens: row.total_tokens,
-      };
-    }
-    await new Promise((r) => setTimeout(r, 400));
-  }
-  return null;
-}
 
 export default function PlaygroundPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModel, setSelectedModel] = useState("archer-auto");
+  const [reasoning, setReasoning] = useState(false);
+  const [effort, setEffort] = useState<Effort>("medium");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
@@ -69,6 +68,11 @@ export default function PlaygroundPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages]);
 
+  // Effort only means something where the answering model can grade it. For
+  // archer-auto the model isn't known until after routing, so leave it enabled.
+  const picked = models.find((m) => m.name === selectedModel);
+  const effortApplies = !picked || picked.reasoning_mode === "effort" || picked.reasoning_mode === "effort_optional";
+
   async function send() {
     if (!input.trim() || busy || !token) return;
     setError(null);
@@ -78,19 +82,16 @@ export default function PlaygroundPage() {
     setMessages([...history, { id: assistantId, role: "assistant", content: "" }]);
     setInput("");
     setBusy(true);
-    const sentAt = Date.now();
 
-    const setAssistant = (content: string, extra: Partial<Msg> = {}) =>
+    const patch = (fields: Partial<Msg>) =>
       setMessages((prev) => {
         const next = [...prev];
-        next[next.length - 1] = { id: assistantId, role: "assistant", content, ...extra };
+        next[next.length - 1] = { ...next[next.length - 1], ...fields };
         return next;
       });
 
-    // A fast upstream (Groq) is delivered by fetch as one coalesced chunk, so
-    // reacting per-token would batch into a single paint. Decouple the reveal:
-    // the reader just fills `full`; this loop paints it at a constant typing
-    // pace (REVEAL_CHARS_PER_SEC) regardless of how fast the provider replied.
+    // The reader fills `full`; this loop paints it. Decoupled so the pace is
+    // ours, not the provider's chunk boundaries'.
     let full = "";
     let shown = 0;
     let streaming = true;
@@ -101,8 +102,10 @@ export default function PlaygroundPage() {
         const dt = (now - lastTick) / 1000;
         lastTick = now;
         if (shown < full.length) {
-          shown = Math.min(full.length, shown + REVEAL_CHARS_PER_SEC * dt);
-          setAssistant(full.slice(0, Math.floor(shown)));
+          const backlog = full.length - shown;
+          const rate = Math.max(REVEAL_CHARS_PER_SEC, backlog / CATCHUP_SECONDS);
+          shown = Math.min(full.length, shown + rate * dt);
+          patch({ content: full.slice(0, Math.floor(shown)) });
         }
         await new Promise((r) => requestAnimationFrame(r));
       }
@@ -119,6 +122,8 @@ export default function PlaygroundPage() {
           model: selectedModel,
           messages: history.map((m) => ({ role: m.role, content: m.content })),
           stream: true,
+          reasoning,
+          reasoning_effort: effort,
         }),
       });
       if (res.status === 429) {
@@ -138,6 +143,8 @@ export default function PlaygroundPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let thoughts = "";
+      let meta: Meta | undefined;
       let done = false;
       while (!done) {
         const { done: streamDone, value } = await reader.read();
@@ -154,8 +161,20 @@ export default function PlaygroundPage() {
             break;
           }
           try {
-            const delta = JSON.parse(data).choices?.[0]?.delta?.content;
-            if (delta) full += delta;
+            const obj = JSON.parse(data);
+            // The playground endpoint closes with one archer.metadata line
+            // naming the model that actually served the request — the public
+            // /v1 stream never carries it.
+            if (obj.archer) {
+              meta = obj.archer;
+              continue;
+            }
+            const delta = obj.choices?.[0]?.delta;
+            if (delta?.reasoning) {
+              thoughts += delta.reasoning;
+              patch({ reasoning: thoughts });
+            }
+            if (delta?.content) full += delta.content;
           } catch {
             /* skip malformed chunk */
           }
@@ -163,11 +182,7 @@ export default function PlaygroundPage() {
       }
       streaming = false;
       await pacer; // let the reveal catch up to the full text
-
-      // Reveal the real routed model once the log row lands.
-      setAssistant(full, { resolving: true });
-      const resolved = await resolveModel(token, sentAt);
-      setAssistant(full, resolved ?? { model: undefined });
+      patch({ content: full, meta });
     } catch (e) {
       streaming = false;
       await pacer; // stop it writing before we remove the bubble
@@ -182,27 +197,69 @@ export default function PlaygroundPage() {
     <>
       <Header title="Playground" subtitle="Watch a request route and stream, live." />
       <main className="flex flex-1 flex-col overflow-hidden p-gutter">
-        <div className="mb-3 flex items-center gap-3">
-          <label
-            htmlFor="model-select"
-            className="font-mono text-label uppercase text-(--neutral-600)"
-          >
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span id="model-label" className="font-mono text-label uppercase text-(--neutral-600)">
             Model
-          </label>
-          <select
-            id="model-select"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+          </span>
+          <Select value={selectedModel} onValueChange={setSelectedModel} disabled={busy}>
+            <SelectTrigger aria-labelledby="model-label" className="w-[248px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="archer-auto">archer-auto · let the router pick</SelectItem>
+              {models.map((m) => (
+                <SelectItem key={m.id} value={m.name}>
+                  {m.display_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <button
+            type="button"
+            onClick={() => setReasoning((r) => !r)}
             disabled={busy}
-            className="h-8 rounded-full border border-(--accent-800) bg-primary/10 px-3 font-mono text-caption text-(--accent-300) outline-none focus-visible:border-ring"
+            aria-pressed={reasoning}
+            title={
+              reasoning
+                ? "The model reasons before answering — slower, shown separately."
+                : "Answer straight away. Reasoning tokens are most of the latency."
+            }
+            className={`flex h-8 items-center gap-1.5 rounded-full border px-3 font-mono text-caption transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/15 disabled:cursor-not-allowed disabled:opacity-50 ${
+              reasoning
+                ? "border-(--accent-800) bg-primary/15 text-(--accent-300)"
+                : "border-(--neutral-800) text-(--neutral-500) hover:text-foreground"
+            }`}
           >
-            <option value="archer-auto">archer-auto · let the router pick</option>
-            {models.map((m) => (
-              <option key={m.id} value={m.name}>
-                {m.display_name}
-              </option>
-            ))}
-          </select>
+            <Brain size={13} weight={reasoning ? "fill" : "regular"} />
+            think {reasoning ? "on" : "off"}
+          </button>
+
+          {reasoning && (
+            <Select
+              value={effort}
+              onValueChange={(v) => setEffort(v as Effort)}
+              disabled={busy || !effortApplies}
+            >
+              <SelectTrigger
+                aria-label="Reasoning effort"
+                className="w-[124px]"
+                title={
+                  effortApplies
+                    ? "How much the model deliberates."
+                    : `${picked?.display_name} can only switch thinking on or off.`
+                }
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">low effort</SelectItem>
+                <SelectItem value="medium">medium effort</SelectItem>
+                <SelectItem value="high">high effort</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+
           <span className="ml-auto hidden font-mono text-caption text-(--neutral-600) sm:block">
             POST /v1/chat/completions
           </span>
@@ -220,15 +277,8 @@ export default function PlaygroundPage() {
             />
           )}
           {messages.map((m) => {
-            // The last assistant bubble is "live" (gets the cursor) until the
-            // model reveal starts — the one piece of motion the product shell
-            // allows (design.md motion budget).
-            const streaming =
-              busy &&
-              m.id === messages[messages.length - 1]?.id &&
-              m.role === "assistant" &&
-              !m.resolving &&
-              !m.model;
+            const live =
+              busy && m.id === messages[messages.length - 1]?.id && m.role === "assistant";
             return (
               <div
                 key={m.id}
@@ -243,41 +293,23 @@ export default function PlaygroundPage() {
                 >
                   {m.role === "user" ? (
                     <p className="whitespace-pre-wrap">{m.content}</p>
-                  ) : m.content ? (
-                    <Markdown>{m.content}</Markdown>
-                  ) : !streaming ? (
-                    <p className="text-muted-foreground">…</p>
-                  ) : null}
-                  {streaming && <span className="stream-cursor" aria-hidden />}
-                  {m.role === "assistant" && (m.resolving || m.model) && (
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[rgba(233,233,237,.06)] pt-2 text-caption">
-                      {m.resolving && !m.model ? (
-                        <span className="text-muted-foreground">confirming model…</span>
-                      ) : (
+                  ) : (
+                    <>
+                      {m.reasoning && <ReasoningPanel text={m.reasoning} open={live && !m.content} />}
+                      {m.content ? (
                         <>
-                          <span className="rounded-[6px] bg-primary/10 px-1.5 py-0.5 text-(--accent-300)">
-                            answered by <span className="font-mono">{m.model}</span>
-                            {m.fallback ? " (fallback)" : ""}
-                          </span>
-                          {m.routingReason && (
-                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
-                              {m.routingReason}
-                            </span>
-                          )}
-                          {m.ttftMs != null && (
-                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
-                              ttft {m.ttftMs}ms
-                            </span>
-                          )}
-                          {m.totalTokens != null && (
-                            <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
-                              {m.totalTokens} tok
-                            </span>
-                          )}
+                          <Markdown>{m.content}</Markdown>
+                          {live && <span className="stream-cursor" aria-hidden />}
                         </>
+                      ) : (
+                        /* Before the first token there is nothing to put a
+                           caret after — a bare blinking block just reads as a
+                           glitch. Say what is happening instead. */
+                        live && <Working label={m.reasoning ? "thinking" : "routing"} />
                       )}
-                    </div>
+                    </>
                   )}
+                  {m.role === "assistant" && m.meta && <MetaRow meta={m.meta} />}
                 </div>
               </div>
             );
@@ -312,5 +344,54 @@ export default function PlaygroundPage() {
         </div>
       </main>
     </>
+  );
+}
+
+function Working({ label }: { label: string }) {
+  return (
+    <p className="flex items-center gap-2 font-mono text-caption text-(--neutral-500)">
+      <span className="stream-pulse" aria-hidden />
+      {label}…
+    </p>
+  );
+}
+
+function ReasoningPanel({ text, open }: { text: string; open: boolean }) {
+  return (
+    <details open={open} className="group mb-2 rounded-[8px] border border-(--neutral-800) bg-background/40">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1 font-mono text-caption text-(--neutral-500) hover:text-foreground">
+        <CaretRight size={11} className="transition-transform group-open:rotate-90" />
+        thinking
+      </summary>
+      <p className="max-h-48 overflow-y-auto px-2 pb-2 text-caption whitespace-pre-wrap text-(--neutral-500)">
+        {text}
+      </p>
+    </details>
+  );
+}
+
+function MetaRow({ meta }: { meta: Meta }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-[rgba(233,233,237,.06)] pt-2 text-caption">
+      <span className="rounded-[6px] bg-primary/10 px-1.5 py-0.5 text-(--accent-300)">
+        answered by <span className="font-mono">{meta.model ?? "unknown"}</span>
+        {meta.fallback_used ? " (fallback)" : ""}
+      </span>
+      {meta.routing_reason && (
+        <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+          {meta.routing_reason}
+        </span>
+      )}
+      {meta.time_to_first_token_ms != null && (
+        <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+          ttft {meta.time_to_first_token_ms}ms
+        </span>
+      )}
+      {meta.total_tokens != null && (
+        <span className="rounded-[6px] border border-border px-1.5 py-0.5 font-mono text-(--neutral-500)">
+          {meta.total_tokens} tok
+        </span>
+      )}
+    </div>
   );
 }

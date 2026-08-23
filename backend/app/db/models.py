@@ -116,6 +116,15 @@ class Model(Base):
         ARRAY(Text), server_default=text("'{}'"), nullable=False
     )
     fallback_priority: Mapped[int] = mapped_column(Integer, nullable=False)
+    # How this model handles chain-of-thought, in the same DB-driven spirit:
+    # 'none' (doesn't reason — send it nothing), 'toggle' (none/default only),
+    # 'effort' (low/medium/high, can't be switched off), 'effort_optional'
+    # (both). Read by providers.base.reasoning_params(); the vocabularies are
+    # mutually incompatible and a wrong one is a non-retryable HTTP 400, so
+    # 'none' is the safe default for an unverified model.
+    reasoning_mode: Mapped[str] = mapped_column(
+        String(20), server_default="none", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

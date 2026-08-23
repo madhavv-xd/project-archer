@@ -10,11 +10,11 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-from app.core.normalizer import normalize_chunk, normalize_response
+from app.core.normalizer import StreamNormalizer, normalize_response
 from app.db.models import Model
 from app.providers import ProviderError, get_provider
-from app.providers.base import RETRYABLE
-from app.schemas.chat import ChatCompletionResponse, ChatMessage
+from app.providers.base import RETRYABLE, reasoning_params
+from app.schemas.chat import ChatCompletionResponse, ChatMessage, ReasoningEffort
 
 logger = logging.getLogger("archer.proxy")
 
@@ -80,6 +80,8 @@ async def call_with_fallback(
     messages: list[ChatMessage],
     temperature: float,
     max_tokens: int,
+    reasoning: bool = False,
+    effort: ReasoningEffort = "medium",
 ) -> ProxyResult:
     """Try the selected model, then walk the fallback chain on retryable errors."""
     selected = model_cache.get(selected_name)
@@ -93,8 +95,14 @@ async def call_with_fallback(
         if model is None:
             continue
         try:
+            # Built per attempt, not once: the next model in the chain may speak
+            # a different reasoning dialect than the one that just failed.
             raw = await get_provider(model.provider).chat(
-                model.model_id, messages, temperature, max_tokens
+                model.model_id,
+                messages,
+                temperature,
+                max_tokens,
+                reasoning_params(model.reasoning_mode, model.provider, reasoning, effort),
             )
         except ProviderError as exc:
             last_error = exc
@@ -107,7 +115,7 @@ async def call_with_fallback(
 
         is_fallback = model.name != selected_name and selected is not None
         return ProxyResult(
-            response=normalize_response(raw),
+            response=normalize_response(raw, include_reasoning=reasoning),
             model=model,
             original_model=selected if is_fallback else None,
             fallback_used=is_fallback,
@@ -141,6 +149,8 @@ async def stream_with_fallback(
     max_tokens: int,
     archer_id: str,
     outcome: StreamOutcome,
+    reasoning: bool = False,
+    effort: ReasoningEffort = "medium",
 ):
     """Yield normalized SSE lines, walking the chain on retryable errors — but
     only until the first chunk is forwarded. After that the response is
@@ -160,11 +170,18 @@ async def stream_with_fallback(
         if model is None:
             continue
         gen = get_provider(model.provider).stream(
-            model.model_id, messages, temperature, max_tokens
+            model.model_id,
+            messages,
+            temperature,
+            max_tokens,
+            reasoning_params(model.reasoning_mode, model.provider, reasoning, effort),
         )
+        # One normalizer per attempt: it carries the `<think>` state machine, so
+        # a half-matched tag from a failed attempt must not leak into the next.
+        normalizer = StreamNormalizer(archer_id, include_reasoning=reasoning)
         try:
             async for raw_line in gen:
-                normalized = normalize_chunk(raw_line, archer_id)
+                normalized = normalizer.normalize(raw_line)
                 if normalized is None:
                     continue
                 if not outcome.forwarded_any:
@@ -185,6 +202,9 @@ async def stream_with_fallback(
                     except (ValueError, TypeError):
                         pass
                 yield normalized
+            tail = normalizer.flush()  # text held back mid-tag-match that never was one
+            if tail is not None:
+                yield tail
             yield "data: [DONE]\n\n"
             return
         except ProviderError as exc:

@@ -1,6 +1,7 @@
 """The LLM API (API-key protected): POST /v1/chat/completions, GET /v1/models."""
 
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -42,6 +43,34 @@ async def _log(**fields) -> None:
         logger.exception("failed to write request log")
 
 
+_DONE = "data: [DONE]\n\n"
+
+
+def _meta_chunk(archer_id: str, outcome: StreamOutcome, started: float) -> str:
+    """The playground's answer to 'which model actually served this?'.
+
+    Everything here already lives on StreamOutcome by end-of-stream. Sending it
+    replaces the playground's old GET /logs?limit=1 poll, which cost a round
+    trip plus a 400ms retry and matched the row by timestamp — a guess where the
+    server has the fact.
+    """
+    return "data: " + json.dumps(
+        {
+            "id": archer_id,
+            "object": "archer.metadata",
+            "archer": {
+                "model": outcome.model.display_name if outcome.model else None,
+                "routing_reason": outcome.routing_reason or None,
+                "fallback_used": outcome.fallback_used,
+                "time_to_first_token_ms": outcome.ttft_ms,
+                "latency_ms": int((time.perf_counter() - started) * 1000),
+                "total_tokens": outcome.usage.get("total_tokens"),
+                "interrupted": outcome.interrupted,
+            },
+        }
+    ) + "\n\n"
+
+
 async def _decide(body: ChatCompletionRequest, query: str, allow_manual: bool) -> RouteDecision:
     """Public /v1/chat/completions always auto-routes (body.model is ignored, per
     the documented API contract). The playground opts into honoring an explicit,
@@ -53,7 +82,13 @@ async def _decide(body: ChatCompletionRequest, query: str, allow_manual: bool) -
     return await route(query)
 
 
-@router.post("/chat/completions", response_model=ChatCompletionResponse)
+@router.post(
+    "/chat/completions",
+    response_model=ChatCompletionResponse,
+    # `reasoning` is additive: omitted entirely rather than sent as null, so
+    # clients built against the pre-2H shape deserialize unchanged.
+    response_model_exclude_none=True,
+)
 async def chat_completions(
     request: Request,
     body: ChatCompletionRequest,
@@ -64,7 +99,11 @@ async def chat_completions(
     return await _chat_completions_core(body, api_key, allow_manual=False)
 
 
-@router.post("/playground/chat/completions", response_model=ChatCompletionResponse)
+@router.post(
+    "/playground/chat/completions",
+    response_model=ChatCompletionResponse,
+    response_model_exclude_none=True,
+)
 async def playground_chat_completions(
     request: Request,
     body: ChatCompletionRequest,
@@ -74,7 +113,7 @@ async def playground_chat_completions(
     — same routing/fallback/logging, but no arch_sk_ key to paste, and body.model
     may pick a real catalog model instead of auto-routing."""
     if body.stream:
-        return await _stream_completion(request, body, api_key, allow_manual=True)
+        return await _stream_completion(request, body, api_key, allow_manual=True, playground=True)
     return await _chat_completions_core(body, api_key, allow_manual=True)
 
 
@@ -87,7 +126,8 @@ async def _chat_completions_core(body: ChatCompletionRequest, api_key: ApiKey, a
     started = time.perf_counter()
     try:
         result = await call_with_fallback(
-            selected_name, routing_reason, body.messages, body.temperature, body.max_tokens
+            selected_name, routing_reason, body.messages, body.temperature, body.max_tokens,
+            body.reasoning, body.reasoning_effort,
         )
     except AllModelsUnavailable as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -130,7 +170,11 @@ async def _chat_completions_core(body: ChatCompletionRequest, api_key: ApiKey, a
 
 
 async def _stream_completion(
-    request: Request, body: ChatCompletionRequest, api_key: ApiKey, allow_manual: bool = False
+    request: Request,
+    body: ChatCompletionRequest,
+    api_key: ApiKey,
+    allow_manual: bool = False,
+    playground: bool = False,
 ) -> StreamingResponse:
     query = _last_user_message(body)
     decision = await _decide(body, query, allow_manual)
@@ -143,6 +187,7 @@ async def _stream_completion(
     agen = stream_with_fallback(
         selected_name, routing_reason, body.messages,
         body.temperature, body.max_tokens, archer_id, outcome,
+        body.reasoning, body.reasoning_effort,
     )
 
     # Prime the generator: resolve pre-first-byte fallback BEFORE returning a
@@ -175,12 +220,24 @@ async def _stream_completion(
     headers["X-Accel-Buffering"] = "no"
     headers["Cache-Control"] = "no-cache"
 
+    def _with_meta(chunk: str):
+        """Slip the Archer metadata line in ahead of [DONE].
+
+        Playground only — the public /v1 stream must stay byte-compatible with
+        the OpenAI format and must never disclose the underlying model.
+        """
+        if playground and chunk == _DONE:
+            yield _meta_chunk(archer_id, outcome, started)
+        yield chunk
+
     async def body_iter():
         try:
             if first_chunk is not None:
-                yield first_chunk
+                for out in _with_meta(first_chunk):
+                    yield out
             async for chunk in agen:
-                yield chunk
+                for out in _with_meta(chunk):
+                    yield out
         finally:
             latency_ms = int((time.perf_counter() - started) * 1000)
             log_model = outcome.model or selected

@@ -229,8 +229,32 @@
   }
 }
 
+/* Pre-first-token indicator. The caret needs text to sit after; before the
+   first token there is none, so a bare blinking block reads as a glitch. */
+.stream-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: stream-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes stream-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stream-cursor::after {
+  .stream-cursor::after,
+  .stream-pulse {
     animation: none;
   }
 }

@@ -26,16 +26,31 @@ CATALOG = [
     ("gemma4-31b-ollama", 7, ["writing"]),
 ]
 
+# name → reasoning_mode, mirroring migration 008_reasoning_mode._MODES. The
+# modes carry incompatible effort vocabularies, so tests that exercise fallback
+# need the real ones to catch a payload built for the wrong model.
+REASONING_MODES = {
+    "gpt-oss-120b-groq": "effort",
+    "gpt-oss-20b-groq": "effort",
+    "qwen3.6-27b-groq": "toggle",
+    "nemotron-3-nano-ollama": "effort_optional",
+    "nemotron-3-ultra-ollama": "effort_optional",
+    "nemotron-3-super-ollama": "effort_optional",
+    "minimax-m3-ollama": "effort_optional",
+    "gemma4-31b-ollama": "none",
+}
+
 
 def catalog_models() -> list[Model]:
     return [
         Model(
             name=n,
-            provider="groq",
+            provider="ollama" if n.endswith("-ollama") else "groq",
             model_id=n,
             is_active=True,
             fallback_priority=p,
             routing_domains=d,
+            reasoning_mode=REASONING_MODES[n],
         )
         for n, p, d in CATALOG
     ]

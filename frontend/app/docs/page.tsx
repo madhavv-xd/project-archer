@@ -67,6 +67,14 @@ const STREAM = `stream = client.chat.completions.create(
 for chunk in stream:
     print(chunk.choices[0].delta.content or "", end="")`;
 
+const REASONING = `resp = client.chat.completions.create(
+    model="archer-auto",
+    messages=[{"role": "user", "content": "Why is quicksort O(n log n)?"}],
+    extra_body={"reasoning": True, "reasoning_effort": "high"},
+)
+print(resp.choices[0].message.reasoning)  # how it got there
+print(resp.choices[0].message.content)    # the answer, on its own`;
+
 const ERROR_429 = `{
   "error": {
     "message": "Rate limit exceeded. Try again in 12s.",
@@ -174,6 +182,30 @@ export default function DocsPage() {
             <C>data: [DONE]</C>.
           </p>
           <DocsCodeBlock code={STREAM} lang="python" />
+        </Section>
+
+        <Section id="reasoning" title="Reasoning">
+          <p>
+            Whichever model answers, the reply contains the answer only — no
+            chain-of-thought in <C>content</C>. Reasoning is off by default,
+            because reasoning tokens are most of the latency on most of the
+            catalog.
+          </p>
+          <p>
+            Pass <C>reasoning: true</C> to let the model deliberate first, and{" "}
+            <C>reasoning_effort</C> (<C>low</C> · <C>medium</C> · <C>high</C>,
+            default <C>medium</C>) to say how much. The reasoning comes back on{" "}
+            <C>choices[0].message.reasoning</C> — or{" "}
+            <C>choices[0].delta.reasoning</C> when streaming — and the field is
+            absent entirely when you did not ask for it.
+          </p>
+          <p>
+            Models differ in what they support underneath; Archer translates
+            your request into whatever the answering model accepts, so a model
+            that can only switch thinking on or off still honors an effort
+            level as best it can.
+          </p>
+          <DocsCodeBlock code={REASONING} lang="python" />
         </Section>
 
         <Section id="rate-limits" title="Rate limits & quotas">
