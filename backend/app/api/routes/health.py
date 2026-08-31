@@ -11,7 +11,10 @@ router = APIRouter()
 VERSION = "0.1.0"
 
 
-@router.api_route("/health", methods=["GET", "HEAD"])
+# HEAD is kept for uptime probes but excluded from the schema: one shared
+# operation id across both methods collides in the generated OpenAPI.
+@router.get("/health")
+@router.head("/health", include_in_schema=False)
 async def health(request: Request) -> dict:
     redis_client = getattr(request.app.state, "redis", None)
     if redis_client is None:
