@@ -1,6 +1,6 @@
 """Shared test catalog for the routing tests.
 
-Mirrors migration 007's active set (name, fallback_priority, routing_domains) so
+Mirrors migration 009's active set (name, fallback_priority, routing_domains) so
 proxy / router / embedding tests resolve domains and fallback order the same way
 production does — without a live DB. One source of truth for all three.
 
@@ -14,29 +14,27 @@ import pytest
 from app.core.proxy import model_cache
 from app.db.models import Model
 
-# (name, fallback_priority, routing_domains) — must match 007_refresh_catalog._ACTIVE.
+# (name, fallback_priority, routing_domains) — must match 009_qwen38_retire_minimax._ACTIVE.
 CATALOG = [
     ("gpt-oss-120b-groq", 0, ["coding", "math"]),
-    ("qwen3.6-27b-groq", 1, ["simple"]),
+    ("qwen3.8-27b-groq", 1, ["simple"]),
     ("gpt-oss-20b-groq", 2, ["general"]),
     ("nemotron-3-nano-ollama", 3, []),
     ("nemotron-3-ultra-ollama", 4, ["analysis"]),
     ("nemotron-3-super-ollama", 5, []),
-    ("minimax-m3-ollama", 6, []),
-    ("gemma4-31b-ollama", 7, ["writing"]),
+    ("gemma4-31b-ollama", 6, ["writing"]),
 ]
 
-# name → reasoning_mode, mirroring migration 008_reasoning_mode._MODES. The
+# name → reasoning_mode, mirroring migrations 008 + 009 (qwen3.8). The
 # modes carry incompatible effort vocabularies, so tests that exercise fallback
 # need the real ones to catch a payload built for the wrong model.
 REASONING_MODES = {
     "gpt-oss-120b-groq": "effort",
     "gpt-oss-20b-groq": "effort",
-    "qwen3.6-27b-groq": "toggle",
+    "qwen3.8-27b-groq": "effort_optional",
     "nemotron-3-nano-ollama": "effort_optional",
     "nemotron-3-ultra-ollama": "effort_optional",
     "nemotron-3-super-ollama": "effort_optional",
-    "minimax-m3-ollama": "effort_optional",
     "gemma4-31b-ollama": "none",
 }
 

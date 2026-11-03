@@ -7,7 +7,7 @@
  *  says so in its own copy. Run `routeRules.test.ts` after touching router.py.
  *
  *  The domain→model map below is DB-driven in production (`models.routing_domains`,
- *  migration 007) — mirrored here for display only. */
+ *  migration 009) — mirrored here for display only. */
 
 const CODING = new Set(
   "code function class debug error bug python javascript typescript java rust go api database sql algorithm implement programming syntax compile runtime framework library".split(" "),
@@ -30,7 +30,7 @@ export const DOMAIN_MODEL: Record<string, { model: string; provider: string }> =
   coding: { model: "gpt-oss-120b", provider: "Groq" },
   math: { model: "gpt-oss-120b", provider: "Groq" },
   writing: { model: "gemma4-31b", provider: "Ollama Cloud" },
-  simple: { model: "qwen3.6-27b", provider: "Groq" },
+  simple: { model: "qwen3.8-27b", provider: "Groq" },
   analysis: { model: "nemotron-3-ultra", provider: "Ollama Cloud" },
   general: { model: "gpt-oss-20b", provider: "Groq" },
 };

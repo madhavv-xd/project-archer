@@ -76,8 +76,8 @@ async def test_retryable_error_walks_to_next_model(monkeypatch, messages):
 
     assert result.fallback_used is True
     assert result.routing_reason == "coding_keywords_fallback"
-    assert result.model.name == "qwen3.6-27b-groq"  # next by fallback_priority
-    assert calls == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
+    assert result.model.name == "qwen3.8-27b-groq"  # next by fallback_priority
+    assert calls == ["gpt-oss-120b-groq", "qwen3.8-27b-groq"]
 
 
 async def test_client_error_stops_the_chain(monkeypatch, messages):
@@ -150,13 +150,13 @@ async def test_stream_fallback_before_first_byte(monkeypatch, messages):
     )
 
     assert outcome.fallback_used is True
-    assert outcome.model.name == "qwen3.6-27b-groq"  # next by fallback_priority
+    assert outcome.model.name == "qwen3.8-27b-groq"  # next by fallback_priority
     assert outcome.original_model.name == "gpt-oss-120b-groq"
     assert outcome.routing_reason == "coding_keywords_fallback"
     assert outcome.ttft_ms is not None
     assert outcome.usage["total_tokens"] == 10
     assert outcome.interrupted is False
-    assert calls == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
+    assert calls == ["gpt-oss-120b-groq", "qwen3.8-27b-groq"]
     assert chunks[-1] == "data: [DONE]\n\n"
 
 
@@ -216,10 +216,10 @@ async def test_stream_client_error_stops_chain(monkeypatch, messages):
 async def test_reasoning_params_rebuilt_for_the_model_that_actually_answers(
     monkeypatch, messages
 ):
-    """The chain crosses reasoning dialects: gpt-oss-120b takes low/medium/high,
-    qwen3.6 takes none/default and 400s on the former. Reusing the first model's
-    payload for the second would fail the request outright (client_error is not
-    retried), so params are built per attempt, not once per request."""
+    """The chain crosses reasoning dialects: with reasoning off, gpt-oss-120b
+    (effort) must get `low` — it 400s on `none` — while qwen3.8 (effort_optional)
+    gets `none`. Reusing one model's payload for the other would fail or leak
+    reasoning (client_error is not retried), so params are built per attempt."""
     payloads: list[dict] = []
     calls = _patch(
         monkeypatch,
@@ -229,12 +229,12 @@ async def test_reasoning_params_rebuilt_for_the_model_that_actually_answers(
 
     await call_with_fallback(
         "gpt-oss-120b-groq", "coding_keywords", messages, 1.0, 128,
-        reasoning=True, effort="high",
+        reasoning=False, effort="high",
     )
 
-    assert calls[:2] == ["gpt-oss-120b-groq", "qwen3.6-27b-groq"]
-    assert payloads[0]["reasoning_effort"] == "high"        # effort mode
-    assert payloads[1]["reasoning_effort"] == "default"     # toggle mode
+    assert calls[:2] == ["gpt-oss-120b-groq", "qwen3.8-27b-groq"]
+    assert payloads[0]["reasoning_effort"] == "low"         # effort mode
+    assert payloads[1]["reasoning_effort"] == "none"        # effort_optional mode
 
 
 async def test_reasoning_off_by_default_suppresses_output(monkeypatch, messages):

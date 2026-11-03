@@ -26,29 +26,27 @@ import { HeroScene } from "./HeroScene";
 import { Brandmark } from "@/components/layout/Brandmark";
 import { decide, tokens, DOMAIN_MODEL, type Decision } from "./routeRules";
 
-/** Display copy for the active catalog (migration 007). Model names live in the
+/** Display copy for the active catalog (migration 009). Model names live in the
  *  DB everywhere else; this list is marketing display only. */
 const MODELS = [
   { name: "gpt-oss-120b", provider: "Groq", ctx: "131K", best: "Code, math, and the default shot" },
-  { name: "qwen3.6-27b", provider: "Groq", ctx: "131K", best: "Fast replies to short, simple asks" },
+  { name: "qwen3.8-27b", provider: "Groq", ctx: "131K", best: "Fast replies to short, simple asks" },
   { name: "gpt-oss-20b", provider: "Groq", ctx: "131K", best: "Quick conversational turns" },
   { name: "nemotron-3-nano", provider: "Ollama", ctx: "131K", best: "Light general-purpose work" },
   { name: "nemotron-3-ultra", provider: "Ollama", ctx: "262K", best: "Analysis and step-by-step reasoning" },
   { name: "nemotron-3-super", provider: "Ollama", ctx: "262K", best: "Deep reasoning, held in reserve" },
-  { name: "minimax-m3", provider: "Ollama", ctx: "524K", best: "Very long-context analysis" },
   { name: "gemma4-31b", provider: "Ollama", ctx: "131K", best: "Writing and long-form drafting" },
 ];
 
-/** Chain order is `models.fallback_priority` from migration 007 — Groq holds
+/** Chain order is `models.fallback_priority` from migration 009 — Groq holds
  *  0-2, the slowest model sits last. Not the same thing as domain ownership. */
 const CHAIN = [
   { name: "gpt-oss-120b", provider: "Groq" },
-  { name: "qwen3.6-27b", provider: "Groq" },
+  { name: "qwen3.8-27b", provider: "Groq" },
   { name: "gpt-oss-20b", provider: "Groq" },
   { name: "nemotron-3-nano", provider: "Ollama Cloud" },
   { name: "nemotron-3-ultra", provider: "Ollama Cloud" },
   { name: "nemotron-3-super", provider: "Ollama Cloud" },
-  { name: "minimax-m3", provider: "Ollama Cloud" },
   { name: "gemma4-31b", provider: "Ollama Cloud" },
 ];
 
@@ -535,7 +533,7 @@ function FallbackChain() {
         </Reveal>
         <p className="lp-chain-note">
           {step >= 2
-            ? "gpt-oss-120b and qwen3.6-27b returned rate_limit — retryable, so the chain advanced. gpt-oss-20b answered; the caller saw one 200 and the reason logged as coding_keywords_fallback."
+            ? "gpt-oss-120b and qwen3.8-27b returned rate_limit — retryable, so the chain advanced. gpt-oss-20b answered; the caller saw one 200 and the reason logged as coding_keywords_fallback."
             : "Order is the catalog's fallback_priority. The faster Groq models hold the head of the chain; the larger, slower Ollama Cloud models sit behind them."}
         </p>
       </div>

@@ -134,9 +134,9 @@ export function HeroScene() {
 
       const NAMES = [
         "gpt-oss-120b",
-        "qwen3.6-27b",
+        "qwen3.8-27b",
         "nemotron-3-ultra",
-        "minimax-m3",
+        "nemotron-3-super",
         "gemma4-31b",
         "gpt-oss-20b",
       ];

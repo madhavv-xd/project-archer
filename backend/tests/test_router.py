@@ -73,7 +73,7 @@ def test_domain_resolves_to_active_model(catalog):
     assert model_for_domain("coding") == "gpt-oss-120b-groq"
     assert model_for_domain("math") == "gpt-oss-120b-groq"
     assert model_for_domain("writing") == "gemma4-31b-ollama"
-    assert model_for_domain("simple") == "qwen3.6-27b-groq"
+    assert model_for_domain("simple") == "qwen3.8-27b-groq"
     assert model_for_domain("analysis") == "nemotron-3-ultra-ollama"
     assert model_for_domain("general") == "gpt-oss-20b-groq"
 

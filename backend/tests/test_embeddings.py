@@ -107,7 +107,7 @@ async def test_embedding_mode_high_confidence_decides(monkeypatch, catalog):
 
 async def test_embedding_mode_below_threshold_falls_back_to_keyword(monkeypatch, catalog):
     monkeypatch.setattr(settings, "ROUTING_MODE", "embedding")
-    await _stub_embedding_route(monkeypatch, ("math", 0.1))
+    await _stub_embedding_route(monkeypatch, ("math", 0.05))
     d = await route("please debug this python function")  # keyword → coding
     assert d.model_name == "gpt-oss-120b-groq"
     assert d.routing_reason == "coding_keywords"  # plain keyword reason, no prefix
@@ -130,7 +130,7 @@ def test_shadow_agreement_pct(catalog):
     rows = [
         ("embedding_coding", "gpt-oss-120b-groq"),   # domain coding → gpt-oss-120b matches → agree
         ("embedding_math", "gpt-oss-120b-groq"),      # matches → agree
-        ("embedding_math", "qwen3.6-27b-groq"),       # mismatch → disagree
+        ("embedding_math", "qwen3.8-27b-groq"),       # mismatch → disagree
     ]
     assert _shadow_agreement_pct(rows) == pytest.approx(66.67)
 

@@ -54,7 +54,11 @@ class Settings(BaseSettings):
     # falls back to keyword). See openspec/changes/phase-2b-embedding-routing.
     ROUTING_MODE: str = "keyword"
     EMBEDDING_API_KEY: str = ""
-    EMBEDDING_SIMILARITY_THRESHOLD: float = 0.35
+    # Below this, keyword routing decides instead. Keyword is ~27% accurate on
+    # held-out queries, so it's a junk-input floor, not a confidence gate: 0.35
+    # sent 37% of real queries to keyword (held-out 60%); 0.1 → 89%. Tune on
+    # eval_routing.py's DEV set, never HELDOUT.
+    EMBEDDING_SIMILARITY_THRESHOLD: float = 0.1
 
     @property
     def plan_limits(self) -> dict[str, dict[str, int]]:
